@@ -420,7 +420,7 @@ func extractXML(body, tag string) string {
 
 // ProxyURL 代理URL（用于播放外部视频）
 func (s *SearchService) ProxyURL(targetURL string) (string, error) {
-	parsed, err := url.Parse(targetURL)
+	_, err := url.Parse(targetURL)
 	if err != nil {
 		return "", err
 	}

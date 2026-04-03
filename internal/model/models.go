@@ -21,7 +21,7 @@ type VideoSource struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`
 	API       string `json:"api"`
-	DetailURL string `json:"detail"`
+	Detail    string `json:"detail"`
 	IsAdult   bool   `json:"is_adult"`
 	SortOrder int    `json:"sort_order"`
 	Enabled   bool   `json:"enabled"`

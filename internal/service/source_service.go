@@ -87,9 +87,7 @@ func (s *SettingService) loadConfig() {
 	}
 
 	// 从数据库加载注册设置
-	if enabled, err := s.repo.Get("register_enabled"); err == nil {
-		// 已设置
-	}
+	_, _ = s.repo.Get("register_enabled")
 }
 
 // GetConfig 获取配置
@@ -115,7 +113,11 @@ func (s *SettingService) GetRegisterEnabled() bool {
 
 // SetRegisterEnabled 设置注册是否启用
 func (s *SettingService) SetRegisterEnabled(enabled bool) error {
-	return s.repo.Set("register_enabled", map[bool]string{true: "true", false: "false"}[enabled])
+	enabledStr := "false"
+	if enabled {
+		enabledStr = "true"
+	}
+	return s.repo.Set("register_enabled", enabledStr)
 }
 
 // GetCacheTime 获取缓存时间

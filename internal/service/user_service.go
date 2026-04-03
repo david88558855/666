@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/katelyatv/katelyatv-go/internal/model"
 	"github.com/katelyatv/katelyatv-go/internal/repository"
@@ -167,12 +166,12 @@ func (s *UserService) AddFavorite(userID int64, site, siteName, videoID, title, 
 
 // RemoveFavorite 删除收藏
 func (s *UserService) RemoveFavorite(id, userID int64) error {
-	return s.repo.Delete(id, userID)
+	return s.favRepo.Delete(id, userID)
 }
 
 // FavoriteExists 检查收藏是否存在
 func (s *UserService) FavoriteExists(userID int64, site, videoID string) (bool, error) {
-	return s.repo.Exists(userID, site, videoID)
+	return s.favRepo.Exists(userID, site, videoID)
 }
 
 // GetHistory 获取历史记录

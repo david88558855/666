@@ -52,12 +52,18 @@ func initSchema(db *sql.DB) error {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
-	-- 视频源表
+	-- 视频源表 (omnibox 格式)
 	CREATE TABLE IF NOT EXISTS video_sources (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		key TEXT NOT NULL,
 		name TEXT NOT NULL,
 		api TEXT NOT NULL,
-		detail TEXT DEFAULT '',
+		type INTEGER DEFAULT 2,
+		is_active INTEGER DEFAULT 1,
+		is_default INTEGER DEFAULT 0,
+		remark TEXT DEFAULT '',
+		tags TEXT DEFAULT '',
+		priority INTEGER DEFAULT 0,
 		is_adult INTEGER DEFAULT 0,
 		sort_order INTEGER DEFAULT 0,
 		enabled INTEGER DEFAULT 1,
@@ -135,44 +141,75 @@ func initSchema(db *sql.DB) error {
 	return nil
 }
 
-// 默认视频源
-var defaultSources = []struct {
-	name    string
-	api     string
-	detail  string
-	isAdult bool
-}{
-	{"电影天堂资源", "http://caiji.dyttzyapi.com/api.php/provide/vod", "http://caiji.dyttzyapi.com", false},
-	{"如意资源", "http://cj.rycjapi.com/api.php/provide/vod", "", false},
-	{"暴风资源", "https://bfzyapi.com/api.php/provide/vod", "", false},
-	{"天涯资源", "https://tyyszy.com/api.php/provide/vod", "", false},
-	{"非凡影视", "http://ffzy5.tv/api.php/provide/vod", "http://ffzy5.tv", false},
-	{"360资源", "https://360zy.com/api.php/provide/vod", "", false},
-	{"茅台资源", "https://caiji.maotaizy.cc/api.php/provide/vod", "", false},
-	{"卧龙资源", "https://wolongzyw.com/api.php/provide/vod", "", false},
-	{"极速资源", "https://jszyapi.com/api.php/provide/vod", "https://jszyapi.com", false},
-	{"豆瓣资源", "https://dbzy.tv/api.php/provide/vod", "", false},
-	{"魔爪资源", "https://mozhuazy.com/api.php/provide/vod", "", false},
-	{"魔都资源", "https://www.mdzyapi.com/api.php/provide/vod", "", false},
-	{"最大资源", "https://api.zuidapi.com/api.php/provide/vod", "", false},
-	{"樱花资源", "https://m3u8.apiyhzy.com/api.php/provide/vod", "", false},
-	{"无尽资源", "https://api.wujinapi.me/api.php/provide/vod", "", false},
-	{"旺旺短剧", "https://wwzy.tv/api.php/provide/vod", "", false},
-	{"iKun资源", "https://ikunzyapi.com/api.php/provide/vod", "", false},
-	{"量子资源站", "https://cj.lziapi.com/api.php/provide/vod", "", false},
-	{"小猫咪资源", "https://zy.xmm.hk/api.php/provide/vod", "", false},
+// OmniboxSource omnibox 格式的视频源
+type OmniboxSource struct {
+	Key      string
+	Name     string
+	API      string
+	Type     int
+	IsActive bool
+	Tags     string
+	Priority int
+}
+
+// 默认视频源 (来自 omnibox 影视源)
+var defaultSources = []OmniboxSource{
+	{"豪华资源", "豪华资源", "https://hhzyapi.com/api.php/provide/vod/", 2, true, "优秀", 1},
+	{"非凡影视", "非凡影视", "http://ffzy5.tv/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"如意资源", "如意资源", "http://cj.rycjapi.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"电影天堂资源", "电影天堂资源", "https://caiji.dyttzyapi.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"暴风资源", "暴风资源", "https://bfzyapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"天涯资源", "天涯资源", "https://tyyszy.com/api.php/provide/vod/", 2, true, "", 0},
+	{"360资源", "360资源", "https://360zy.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"豆瓣资源", "豆瓣资源", "https://dbzy.tv/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"魔爪资源", "魔爪资源", "https://mozhuazy.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"魔都资源", "魔都资源", "https://www.mdzyapi.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"最大资源", "最大资源", "https://api.zuidapi.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"樱花资源", "樱花资源", "https://m3u8.apiyhzy.com/api.php/provide/vod/", 2, true, "", 0},
+	{"百度云资源", "百度云资源", "https://api.apibdzy.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"无尽资源", "无尽资源", "https://api.wujinapi.me/api.php/provide/vod/", 2, true, "", 0},
+	{"旺旺短剧", "旺旺短剧", "https://wwzy.tv/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"iKun资源", "iKun资源", "https://ikunzyapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"量子资源站", "量子资源站", "https://cj.lziapi.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"茅台资源", "茅台资源", "https://caiji.maotaizy.cc/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"卧龙资源2", "卧龙资源2", "https://collect.wolongzyw.com/api.php/provide/vod/", 2, true, "", 0},
+	{"速播资源", "速播资源", "https://subocaiji.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"索尼资源", "索尼资源", "https://suoniapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"虎牙资源", "虎牙资源", "https://www.huyaapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"金鹰资源", "金鹰资源", "https://jyzyapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"閃電资源", "閃電资源", "https://sdzyapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"飘零资源", "飘零资源", "https://p2100.net/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"1080资源库", "1080资源库", "https://api.1080zyku.com/inc/api_mac10.php/", 2, true, "", 0},
+	{"CK资源", "CK资源", "https://ckzy.me/api.php/provide/vod/", 2, true, "", 0},
+	{"U酷资源", "U酷资源", "https://api.ukuapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"丫丫点播", "丫丫点播", "https://cj.yayazy.net/api.php/provide/vod/", 2, true, "", 0},
+	{"光速资源", "光速资源", "https://api.guangsuapi.com/api.php/provide/vod/", 2, true, "", 0},
+	{"新浪点播", "新浪点播", "https://api.xinlangapi.com/xinlangapi.php/provide/vod/", 2, true, "优秀", 0},
+	{"牛牛点播", "牛牛点播", "https://api.niuniuzy.me/api.php/provide/vod/", 2, true, "", 0},
+	{"红牛资源", "红牛资源", "https://www.hongniuzy2.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"步步高资源", "步步高资源", "https://api.yparse.com/api/json", 2, true, "", 0},
+	{"鸭鸭资源", "鸭鸭资源", "https://cj.yayazy.net/api.php/provide/vod/", 2, true, "", 0},
+	{"影视工厂", "影视工厂", "https://cj.lziapi.com/api.php/provide/vod/", 2, true, "优秀", 0},
+	{"快车资源", "快车资源", "https://caiji.kuaichezy.org/api.php/provide/vod/", 2, true, "", 0},
+	{"极速资源", "极速资源", "https://jszyapi.com/api.php/provide/vod", 2, true, "", 0},
+	{"卧龙资源", "卧龙资源", "https://wolongzyw.com/api.php/provide/vod", 2, true, "", 0},
+	{"360", "360", "https://360zy.com/api.php/provide/vod", 2, true, "", 0},
 }
 
 // insertDefaultSources 插入默认视频源
 func insertDefaultSources(db *sql.DB) {
-	stmt, err := db.Prepare(`INSERT INTO video_sources (name, api, detail, is_adult, sort_order, enabled, created_at) 
-		VALUES (?, ?, ?, ?, ?, 1, datetime('now'))`)
+	stmt, err := db.Prepare(`INSERT INTO video_sources (key, name, api, type, is_active, tags, priority, enabled, created_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))`)
 	if err != nil {
 		return
 	}
 	defer stmt.Close()
 
 	for i, src := range defaultSources {
-		_, _ = stmt.Exec(src.name, src.api, src.detail, src.isAdult, i)
+		isActive := 0
+		if src.IsActive {
+			isActive = 1
+		}
+		_, _ = stmt.Exec(src.Key, src.Name, src.API, src.Type, isActive, src.Tags, src.Priority, i)
 	}
 }

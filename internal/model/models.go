@@ -18,14 +18,21 @@ type User struct {
 
 // VideoSource 视频源
 type VideoSource struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	API       string `json:"api"`
-	Detail    string `json:"detail"`
-	IsAdult   bool   `json:"is_adult"`
-	SortOrder int    `json:"sort_order"`
-	Enabled   bool   `json:"enabled"`
-	CreatedAt string `json:"created_at"`
+	ID         int64    `json:"id"`
+	Key        string   `json:"key"`
+	Name       string   `json:"name"`
+	API        string   `json:"api"`
+	Type       int      `json:"type"`       // 1=xml, 2=json
+	IsActive   bool     `json:"is_active"`
+	IsDefault  bool     `json:"is_default"`
+	Remark     string   `json:"remark"`
+	Tags       []string `json:"tags,omitempty"`
+	Priority   int      `json:"priority"`
+	Detail     string   `json:"detail"`
+	IsAdult    bool     `json:"is_adult"`
+	SortOrder  int      `json:"sort_order"`
+	Enabled    bool     `json:"enabled"`
+	CreatedAt  string   `json:"created_at"`
 }
 
 // Favorite 收藏

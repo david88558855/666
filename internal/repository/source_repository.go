@@ -20,9 +20,9 @@ func NewSourceRepository(db *sql.DB) *SourceRepository {
 // Create 创建视频源
 func (r *SourceRepository) Create(source *model.VideoSource) error {
 	result, err := r.db.Exec(
-		`INSERT INTO video_sources (name, api, detail, is_adult, sort_order, enabled, created_at) 
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		source.Name, source.API, source.Detail, source.IsAdult, source.SortOrder, source.Enabled, time.Now(),
+		`INSERT INTO video_sources (key, name, api, type, is_active, tags, priority, enabled, created_at) 
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		source.Key, source.Name, source.API, source.Type, source.IsActive, source.Tags, source.Priority, source.Enabled, time.Now(),
 	)
 	if err != nil {
 		return err
@@ -36,10 +36,10 @@ func (r *SourceRepository) Create(source *model.VideoSource) error {
 func (r *SourceRepository) GetByID(id int64) (*model.VideoSource, error) {
 	source := &model.VideoSource{}
 	err := r.db.QueryRow(
-		`SELECT id, name, api, detail, is_adult, sort_order, enabled, created_at 
+		`SELECT id, key, name, api, type, is_active, is_default, remark, tags, priority, enabled, created_at 
 		 FROM video_sources WHERE id = ?`,
 		id,
-	).Scan(&source.ID, &source.Name, &source.API, &source.Detail, &source.IsAdult, &source.SortOrder, &source.Enabled, &source.CreatedAt)
+	).Scan(&source.ID, &source.Key, &source.Name, &source.API, &source.Type, &source.IsActive, &source.IsDefault, &source.Remark, &source.Tags, &source.Priority, &source.Enabled, &source.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +49,8 @@ func (r *SourceRepository) GetByID(id int64) (*model.VideoSource, error) {
 // GetAll 获取所有视频源
 func (r *SourceRepository) GetAll() ([]*model.VideoSource, error) {
 	rows, err := r.db.Query(
-		`SELECT id, name, api, detail, is_adult, sort_order, enabled, created_at 
-		 FROM video_sources ORDER BY sort_order ASC, id ASC`,
+		`SELECT id, key, name, api, type, is_active, is_default, remark, tags, priority, enabled, created_at 
+		 FROM video_sources ORDER BY priority DESC, id ASC`,
 	)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (r *SourceRepository) GetAll() ([]*model.VideoSource, error) {
 	var sources []*model.VideoSource
 	for rows.Next() {
 		source := &model.VideoSource{}
-		if err := rows.Scan(&source.ID, &source.Name, &source.API, &source.Detail, &source.IsAdult, &source.SortOrder, &source.Enabled, &source.CreatedAt); err != nil {
+		if err := rows.Scan(&source.ID, &source.Key, &source.Name, &source.API, &source.Type, &source.IsActive, &source.IsDefault, &source.Remark, &source.Tags, &source.Priority, &source.Enabled, &source.CreatedAt); err != nil {
 			return nil, err
 		}
 		sources = append(sources, source)
@@ -71,8 +71,8 @@ func (r *SourceRepository) GetAll() ([]*model.VideoSource, error) {
 // GetEnabled 获取所有启用的视频源
 func (r *SourceRepository) GetEnabled() ([]*model.VideoSource, error) {
 	rows, err := r.db.Query(
-		`SELECT id, name, api, detail, is_adult, sort_order, enabled, created_at 
-		 FROM video_sources WHERE enabled = 1 ORDER BY sort_order ASC, id ASC`,
+		`SELECT id, key, name, api, type, is_active, is_default, remark, tags, priority, enabled, created_at 
+		 FROM video_sources WHERE enabled = 1 AND is_active = 1 ORDER BY priority DESC, id ASC`,
 	)
 	if err != nil {
 		return nil, err
@@ -82,29 +82,7 @@ func (r *SourceRepository) GetEnabled() ([]*model.VideoSource, error) {
 	var sources []*model.VideoSource
 	for rows.Next() {
 		source := &model.VideoSource{}
-		if err := rows.Scan(&source.ID, &source.Name, &source.API, &source.Detail, &source.IsAdult, &source.SortOrder, &source.Enabled, &source.CreatedAt); err != nil {
-			return nil, err
-		}
-		sources = append(sources, source)
-	}
-	return sources, nil
-}
-
-// GetEnabledNoAdult 获取所有启用且非成人的视频源
-func (r *SourceRepository) GetEnabledNoAdult() ([]*model.VideoSource, error) {
-	rows, err := r.db.Query(
-		`SELECT id, name, api, detail, is_adult, sort_order, enabled, created_at 
-		 FROM video_sources WHERE enabled = 1 AND is_adult = 0 ORDER BY sort_order ASC, id ASC`,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var sources []*model.VideoSource
-	for rows.Next() {
-		source := &model.VideoSource{}
-		if err := rows.Scan(&source.ID, &source.Name, &source.API, &source.Detail, &source.IsAdult, &source.SortOrder, &source.Enabled, &source.CreatedAt); err != nil {
+		if err := rows.Scan(&source.ID, &source.Key, &source.Name, &source.API, &source.Type, &source.IsActive, &source.IsDefault, &source.Remark, &source.Tags, &source.Priority, &source.Enabled, &source.CreatedAt); err != nil {
 			return nil, err
 		}
 		sources = append(sources, source)
@@ -115,8 +93,8 @@ func (r *SourceRepository) GetEnabledNoAdult() ([]*model.VideoSource, error) {
 // Update 更新视频源
 func (r *SourceRepository) Update(source *model.VideoSource) error {
 	_, err := r.db.Exec(
-		`UPDATE video_sources SET name = ?, api = ?, detail = ?, is_adult = ?, sort_order = ?, enabled = ? WHERE id = ?`,
-		source.Name, source.API, source.Detail, source.IsAdult, source.SortOrder, source.Enabled, source.ID,
+		`UPDATE video_sources SET key = ?, name = ?, api = ?, type = ?, is_active = ?, remark = ?, tags = ?, priority = ?, enabled = ? WHERE id = ?`,
+		source.Key, source.Name, source.API, source.Type, source.IsActive, source.Remark, source.Tags, source.Priority, source.Enabled, source.ID,
 	)
 	return err
 }
@@ -132,6 +110,38 @@ func (r *SourceRepository) Count() (int, error) {
 	var count int
 	err := r.db.QueryRow("SELECT COUNT(*) FROM video_sources").Scan(&count)
 	return count, err
+}
+
+// ToggleEnabled 切换启用状态
+func (r *SourceRepository) ToggleEnabled(id int64, enabled bool) error {
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
+	_, err := r.db.Exec("UPDATE video_sources SET enabled = ? WHERE id = ?", enabledInt, id)
+	return err
+}
+
+// GetEnabledNoAdult 获取所有启用且非成人的视频源
+func (r *SourceRepository) GetEnabledNoAdult() ([]*model.VideoSource, error) {
+	rows, err := r.db.Query(
+		`SELECT id, key, name, api, type, is_active, is_default, remark, tags, priority, enabled, created_at 
+		 FROM video_sources WHERE enabled = 1 AND is_active = 1 AND is_adult = 0 ORDER BY priority DESC, id ASC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sources []*model.VideoSource
+	for rows.Next() {
+		source := &model.VideoSource{}
+		if err := rows.Scan(&source.ID, &source.Key, &source.Name, &source.API, &source.Type, &source.IsActive, &source.IsDefault, &source.Remark, &source.Tags, &source.Priority, &source.Enabled, &source.CreatedAt); err != nil {
+			return nil, err
+		}
+		sources = append(sources, source)
+	}
+	return sources, nil
 }
 
 // SettingRepository 设置仓库

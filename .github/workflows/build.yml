@@ -23,13 +23,33 @@ jobs:
         env:
           CGO_ENABLED: '0'
         run: |
-          echo "=== Environment ==="
-          go version
-          go env GOOS GOARCH CGO_ENABLED
-          
-          echo "=== Building ==="
           go build -v -ldflags="-s -w" -o katelyatv-go ./cmd/server
-          
-          echo "=== Result ==="
           ls -la katelyatv-go
           file katelyatv-go
+      
+      - name: Package
+        run: |
+          cat > config.example.json << 'EOF'
+          {
+            "cache_time": 7200,
+            "api_site": {}
+          }
+          EOF
+          
+          cat > start.sh << 'EOF'
+          #!/bin/bash
+          PORT=${PORT:-3000}
+          DATA_DIR=${DATA_DIR:-./data}
+          CONFIG=${CONFIG:-./config.json}
+          ./katelyatv-go --port $PORT --data-dir "$DATA_DIR" --config "$CONFIG"
+          EOF
+          chmod +x start.sh
+          
+          tar -czf katelyatv-go_linux_amd64.tar.gz katelyatv-go config.example.json start.sh
+      
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: katelyatv-go_linux_amd64
+          path: katelyatv-go_linux_amd64.tar.gz
+          retention-days: 30

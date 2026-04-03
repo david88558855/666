@@ -34,8 +34,7 @@ jobs:
       - name: Get dependencies
         run: |
           go mod download
-          # 验证 sqlite3 是否可用
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=musl-gcc go build -tags "sqlite_fts5" ./cmd/server
+          go mod verify
 
       - name: Build
         id: build

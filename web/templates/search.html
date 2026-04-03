@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索 - KatelyaTV-Go</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .search-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-header {
+            margin-bottom: 30px;
+        }
+        .search-input-large {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 18px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+        .search-input-large:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .search-results {
+            min-height: 400px;
+        }
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">🎬 KatelyaTV-Go</a>
+                <nav class="nav">
+                    <a href="/" class="nav-item">首页</a>
+                    <a href="/search" class="nav-item active">搜索</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="search-page">
+        <div class="search-header">
+            <input type="text" id="searchInput" class="search-input-large" placeholder="搜索电影、电视剧、综艺、动漫..." autofocus>
+        </div>
+
+        <div class="search-results" id="searchResults">
+            <div class="no-results">
+                <p>输入关键词开始搜索</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const api = window.API;
+        const searchInput = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('searchResults');
+
+        // 自动搜索
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                resultsContainer.innerHTML = '<div class="no-results"><p>输入关键词开始搜索</p></div>';
+                return;
+            }
+            searchTimeout = setTimeout(() => search(query), 300);
+        });
+
+        async function search(query) {
+            resultsContainer.innerHTML = '<div class="loading">搜索中...</div>';
+
+            try {
+                const user = api.getUser();
+                const headers = {};
+                if (user) headers['Authorization'] = 'Bearer ' + user.id;
+
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { headers });
+                const data = await res.json();
+
+                if (data.code === 0 && data.data && data.data.length > 0) {
+                    renderResults(data.data);
+                } else {
+                    resultsContainer.innerHTML = '<div class="no-results"><p>未找到相关结果</p></div>';
+                }
+            } catch (err) {
+                resultsContainer.innerHTML = '<div class="no-results"><p>搜索失败，请稍后重试</p></div>';
+            }
+        }
+
+        function renderResults(items) {
+            resultsContainer.innerHTML = `
+                <div class="section-title">找到 ${items.length} 个结果</div>
+                <div class="video-grid">
+                    ${items.map(item => `
+                        <a href="/play?site=${encodeURIComponent(item.site)}&id=${item.id}&title=${encodeURIComponent(item.title)}&cover=${encodeURIComponent(item.cover)}" class="video-card">
+                            <div class="video-cover">
+                                <img src="${item.cover || '/static/img/placeholder.png'}" alt="${item.title}" loading="lazy">
+                                <span class="video-type">${item.type === 'tv' ? '剧' : '影'}</span>
+                            </div>
+                            <div class="video-info">
+                                <h3 class="video-title">${item.title}</h3>
+                                <div class="video-meta">
+                                    <span>${item.site_name || ''}</span>
+                                    ${item.year ? `<span>${item.year}</span>` : ''}
+                                </div>
+                            </div>
+                        </a>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // 搜索框获得焦点
+        searchInput.focus();
+    </script>
+</body>
+</html>

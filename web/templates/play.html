@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>播放 - KatelyaTV-Go</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .player-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .video-wrapper {
+            position: relative;
+            background: #000;
+            aspect-ratio: 16/9;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+        }
+        .episode-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .episode-item {
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 60px;
+            text-align: center;
+        }
+        .episode-item:hover {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .episode-item.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .detail-info {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .detail-title {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .detail-meta {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+        .detail-desc {
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+        .video-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .btn-favorite {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-favorite:hover {
+            background: #f44336;
+            color: #fff;
+            border-color: #f44336;
+        }
+        .btn-favorite.favorited {
+            background: #f44336;
+            color: #fff;
+            border-color: #f44336;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">🎬 KatelyaTV-Go</a>
+                <nav class="nav">
+                    <a href="/" class="nav-item">首页</a>
+                    <a href="/search" class="nav-item">搜索</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="player-container">
+        <a href="/" class="back-link">← 返回首页</a>
+        
+        <div class="video-wrapper">
+            <video id="videoPlayer" controls autoplay>
+                您的浏览器不支持 video 标签。
+            </video>
+        </div>
+
+        <div class="detail-info">
+            <h1 class="detail-title" id="videoTitle">加载中...</h1>
+            <div class="video-actions">
+                <button class="btn-favorite" id="favoriteBtn">⭐ 收藏</button>
+            </div>
+            <div class="detail-meta" id="videoMeta"></div>
+            <div class="detail-desc" id="videoDesc"></div>
+        </div>
+
+        <h3 style="margin: 20px 0;">选集</h3>
+        <div class="episode-list" id="episodeList">
+            <!-- 动态加载 -->
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/api.js"></script>
+    <script>
+        const api = window.API;
+        
+        // 获取URL参数
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        const site = getQueryParam('site');
+        const id = getQueryParam('id');
+        const title = getQueryParam('title') || '未知';
+        const cover = getQueryParam('cover') || '';
+
+        document.getElementById('videoTitle').textContent = decodeURIComponent(title);
+
+        // 加载详情
+        async function loadDetail() {
+            try {
+                const res = await fetch(`/api/detail/${encodeURIComponent(site)}/${id}`);
+                const data = await res.json();
+                
+                if (data.code === 0 && data.data) {
+                    const detail = data.data;
+                    document.getElementById('videoTitle').textContent = detail.title;
+                    document.getElementById('videoMeta').textContent = 
+                        `${detail.year || ''} ${detail.area || ''} ${detail.lang || ''}`;
+                    document.getElementById('videoDesc').textContent = detail.desc || '暂无简介';
+
+                    // 渲染选集
+                    renderEpisodes(detail.episodes);
+
+                    // 自动播放第一集
+                    if (detail.episodes && detail.episodes.length > 0) {
+                        playEpisode(detail.episodes[0]);
+                    }
+                }
+            } catch (err) {
+                showToast('加载详情失败');
+            }
+        }
+
+        function renderEpisodes(episodes) {
+            const container = document.getElementById('episodeList');
+            if (!episodes || episodes.length === 0) {
+                container.innerHTML = '<p>暂无选集信息</p>';
+                return;
+            }
+
+            container.innerHTML = episodes.map((ep, idx) => `
+                <button class="episode-item ${idx === 0 ? 'active' : ''}" 
+                        data-url="${ep.play_url || ep.PlayURL || ''}">
+                    ${ep.name || `第${idx + 1}集`}
+                </button>
+            `).join('');
+
+            container.querySelectorAll('.episode-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('.episode-item').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    playEpisode({ play_url: btn.dataset.url });
+                });
+            });
+        }
+
+        function playEpisode(episode) {
+            const url = episode.play_url || episode.PlayURL || episode.url;
+            if (url) {
+                document.getElementById('videoPlayer').src = url;
+            }
+        }
+
+        // 收藏功能
+        document.getElementById('favoriteBtn').addEventListener('click', async () => {
+            const user = api.getUser();
+            if (!user) {
+                showToast('请先登录');
+                setTimeout(() => location.href = '/login', 1000);
+                return;
+            }
+
+            await fetch('/api/user/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.id },
+                body: JSON.stringify({
+                    site: site,
+                    site_name: '当前源',
+                    video_id: id,
+                    title: decodeURIComponent(title),
+                    cover: cover,
+                    type: 'movie'
+                })
+            });
+            showToast('收藏成功');
+            document.getElementById('favoriteBtn').classList.add('favorited');
+        });
+
+        // 添加历史记录
+        async function addHistory() {
+            const user = api.getUser();
+            if (!user) return;
+
+            const video = document.getElementById('videoPlayer');
+            await fetch('/api/user/history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.id },
+                body: JSON.stringify({
+                    site: site,
+                    site_name: '当前源',
+                    video_id: id,
+                    title: decodeURIComponent(title),
+                    cover: cover,
+                    type: 'movie',
+                    episode: 1,
+                    progress: Math.floor(video.currentTime),
+                    duration: Math.floor(video.duration)
+                })
+            });
+        }
+
+        document.getElementById('videoPlayer').addEventListener('timeupdate', () => {
+            localStorage.setItem('history_' + site + '_' + id, JSON.stringify({
+                time: document.getElementById('videoPlayer').currentTime
+            }));
+        });
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        loadDetail();
+    </script>
+</body>
+</html>

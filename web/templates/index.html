@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KatelyaTV-Go</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <a href="/" class="logo">🎬 KatelyaTV-Go</a>
+                    <nav class="nav">
+                        <a href="/" class="nav-item active">首页</a>
+                        <a href="/search" class="nav-item">搜索</a>
+                        <a href="#" class="nav-item" id="navHistory">历史</a>
+                        <a href="#" class="nav-item" id="navFavorites">收藏</a>
+                    </nav>
+                    <div class="header-actions">
+                        <a href="/login" class="btn btn-login" id="loginBtn">登录</a>
+                        <a href="/admin" class="btn btn-admin" id="adminBtn" style="display:none;">管理</a>
+                        <button class="btn btn-logout" id="logoutBtn" style="display:none;">退出</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 搜索栏 -->
+        <div class="search-section">
+            <div class="container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索电影、电视剧、综艺...">
+                    <button id="searchBtn">搜索</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分类导航 -->
+        <div class="categories">
+            <div class="container">
+                <div class="category-list" id="categoryList">
+                    <button class="category-item active" data-id="all">全部</button>
+                    <button class="category-item" data-id="1">电影</button>
+                    <button class="category-item" data-id="2">电视剧</button>
+                    <button class="category-item" data-id="3">综艺</button>
+                    <button class="category-item" data-id="4">动漫</button>
+                    <button class="category-item" data-id="5">纪录片</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 热门推荐 -->
+        <section class="section">
+            <div class="container">
+                <h2 class="section-title">🔥 热门推荐</h2>
+                <div class="video-grid" id="hotList">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 最新更新 -->
+        <section class="section">
+            <div class="container">
+                <h2 class="section-title">✨ 最新更新</h2>
+                <div class="video-grid" id="newList">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 搜索结果 -->
+        <section class="section" id="searchResults" style="display:none;">
+            <div class="container">
+                <h2 class="section-title">搜索结果</h2>
+                <div class="video-grid" id="searchList">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 历史记录 -->
+        <section class="section" id="historySection" style="display:none;">
+            <div class="container">
+                <h2 class="section-title">📜 观看历史</h2>
+                <div class="video-grid" id="historyList">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 收藏 -->
+        <section class="section" id="favoritesSection" style="display:none;">
+            <div class="container">
+                <h2 class="section-title">⭐ 我的收藏</h2>
+                <div class="video-grid" id="favoritesList">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 底部 -->
+        <footer class="footer">
+            <div class="container">
+                <p>KatelyaTV-Go · Go语言重构版</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

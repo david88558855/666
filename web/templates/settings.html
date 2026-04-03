@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - KatelyaTV-Go</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .settings-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .settings-card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .settings-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        .setting-label {
+            font-weight: 500;
+        }
+        .setting-desc {
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .btn-save {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+        .btn-save:hover {
+            background: #c62f2f;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">🎬 KatelyaTV-Go</a>
+                <nav class="nav">
+                    <a href="/" class="nav-item">首页</a>
+                    <a href="/settings" class="nav-item active">设置</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="settings-container">
+        <div class="settings-card">
+            <h2 class="settings-title">外观设置</h2>
+            
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">主题</div>
+                    <div class="setting-desc">选择界面主题</div>
+                </div>
+                <select id="themeSelect" onchange="saveSettings()">
+                    <option value="auto">跟随系统</option>
+                    <option value="dark">深色</option>
+                    <option value="light">浅色</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">布局</div>
+                    <div class="setting-desc">选择内容显示方式</div>
+                </div>
+                <select id="layoutSelect" onchange="saveSettings()">
+                    <option value="grid">网格</option>
+                    <option value="list">列表</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">每页数量</div>
+                    <div class="setting-desc">每页显示的条目数</div>
+                </div>
+                <select id="itemsPerPageSelect" onchange="saveSettings()">
+                    <option value="12">12</option>
+                    <option value="24">24</option>
+                    <option value="48">48</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h2 class="settings-title">内容设置</h2>
+            
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">成人内容过滤</div>
+                    <div class="setting-desc">开启后隐藏成人内容资源站和搜索结果</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="adultFilter" onchange="saveSettings()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <button class="btn-save" onclick="location.href='/'">返回首页</button>
+    </div>
+
+    <script>
+        const api = window.API;
+        let currentUser = null;
+
+        function checkAuth() {
+            const user = api.getUser();
+            if (!user) {
+                location.href = '/login';
+                return;
+            }
+            currentUser = user;
+        }
+
+        function loadSettings() {
+            if (!currentUser) return;
+            document.getElementById('themeSelect').value = currentUser.theme || 'auto';
+            document.getElementById('layoutSelect').value = currentUser.layout || 'grid';
+            document.getElementById('itemsPerPageSelect').value = currentUser.items_per_page || 24;
+            document.getElementById('adultFilter').checked = currentUser.is_adult === false;
+        }
+
+        async function saveSettings() {
+            if (!currentUser) return;
+
+            const data = {
+                theme: document.getElementById('themeSelect').value,
+                layout: document.getElementById('layoutSelect').value,
+                items_per_page: parseInt(document.getElementById('itemsPerPageSelect').value),
+                is_adult: !document.getElementById('adultFilter').checked
+            };
+
+            try {
+                await fetch('/api/user/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentUser.id },
+                    body: JSON.stringify(data)
+                });
+                // 更新本地存储
+                currentUser = { ...currentUser, ...data };
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                showToast('设置已保存');
+            } catch (err) {
+                showToast('保存失败');
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'toast show';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        checkAuth();
+        loadSettings();
+    </script>
+</body>
+</html>

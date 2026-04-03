@@ -1,12 +1,6 @@
 name: Build Linux amd64 musl
 
 on:
-  push:
-    branches: [ main ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -43,12 +37,7 @@ jobs:
           BUILD_LDFLAGS="-w -s"
           BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
           BUILD_GIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          VERSION=${GITHUB_REF#refs/tags/v}
-          if [[ "$VERSION" == *"refs/tags/"* ]]; then
-            VERSION="untagged"
-          fi
           
-          echo "Build version: $VERSION"
           echo "Build time: $BUILD_TIME"
           echo "Build git: $BUILD_GIT"
           
@@ -57,7 +46,7 @@ jobs:
           
           # Linux amd64 musl 构建
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=musl-gcc go build \
-            -ldflags="${BUILD_LDFLAGS} -X main.buildTime=${BUILD_TIME} -X main.buildGit=${BUILD_GIT} -X main.version=${VERSION}" \
+            -ldflags="${BUILD_LDFLAGS} -X main.buildTime=${BUILD_TIME} -X main.buildGit=${BUILD_GIT}" \
             -tags "sqlite_fts5" \
             -o katelyatv-go_linux_amd64_musl \
             ./cmd/server
@@ -110,111 +99,6 @@ jobs:
           name: katelyatv-go_linux_amd64_musl
           path: release/katelyatv-go_linux_amd64_musl.tar.gz
           retention-days: 30
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: katelyatv-go_linux_amd64_musl
-          path: release
-
-      - name: Extract archive
-        run: |
-          cd release
-          tar -xzf katelyatv-go_linux_amd64_musl.tar.gz
-          ls -la
-
-      - name: Get version
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Generate release notes
-        id: changelog
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          cat > release_body.md << 'EOF'
-          ## 下载说明
-          
-          ### 版本信息
-          - 版本号: **$VERSION**
-          - 架构: Linux amd64 (musl)
-          - 特性: 静态编译，无需依赖
-          
-          ### 使用方法
-          
-          ```bash
-          # 下载并解压
-          tar -xzf katelyatv-go_linux_amd64_musl.tar.gz
-          
-          # 运行（默认端口3000）
-          ./katelyatv-go_linux_amd64_musl --port 3000
-          
-          # 自定义数据目录
-          ./katelyatv-go_linux_amd64_musl --port 3000 --data-dir /opt/katelyatv/data
-          
-          # 使用自定义配置
-          ./katelyatv-go_linux_amd64_musl --config /etc/katelyatv/config.json
-          ```
-          
-          ### 命令行参数
-          
-          | 参数 | 默认值 | 说明 |
-          |------|--------|------|
-          | `--port` | 3000 | 服务端口 |
-          | `--data-dir` | ./data | 数据存储目录 |
-          | `--config` | ./config.json | 配置文件路径 |
-          
-          ### 配置文件格式
-          
-          ```json
-          {
-            "cache_time": 7200,
-            "api_site": {
-              "资源站名称": {
-                "api": "https://api.example.com/provide/vod",
-                "name": "资源站名称",
-                "is_adult": false
-              }
-            }
-          }
-          ```
-          
-          ### 功能特性
-          
-          - 🔍 聚合搜索
-          - 📺 视频播放
-          - ⏭️ 智能跳过片头片尾
-          - 🎯 断点续播
-          - ⭐ 收藏功能
-          - 👥 多用户支持
-          - 🔒 管理员系统
-          - 📱 TVBox 兼容
-          EOF
-          
-          echo "body=release_body.md" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release/katelyatv-go_linux_amd64_musl.tar.gz
-          tag_name: ${{ steps.version.outputs.tag_name }}
-          name: "Release ${{ steps.version.outputs.tag_name }}"
-          body_path: release_body.md
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test:
     runs-on: ubuntu-latest

@@ -54,6 +54,125 @@
         .btn-save:hover {
             background: #c62f2f;
         }
+        .btn-secondary {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .admin-section {
+            display: none;
+        }
+        .admin-section.show {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .table th, .table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .table th {
+            color: var(--text-secondary);
+            font-weight: normal;
+            font-size: 12px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .badge-success { background: #4CAF50; color: #fff; }
+        .badge-warning { background: #ff9800; color: #fff; }
+        .btn-danger {
+            background: #f44336;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card-bg);
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1001;
+        }
+        .toast.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -70,6 +189,34 @@
     </header>
 
     <div class="settings-container">
+        <!-- 管理员区域 -->
+        <div class="settings-card admin-section" id="adminSection">
+            <h2 class="settings-title">👑 用户管理</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">
+                管理员可在此创建新用户
+            </p>
+            <button class="btn-primary" onclick="showAddUserModal()">➕ 添加用户</button>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTable">
+                    <tr><td colspan="4">加载中...</td></tr>
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 20px;">
+                <a href="/admin" class="btn-secondary">进入管理后台 →</a>
+            </div>
+        </div>
+
+        <!-- 用户外观设置 -->
         <div class="settings-card">
             <h2 class="settings-title">外观设置</h2>
             
@@ -127,6 +274,32 @@
         <button class="btn-save" onclick="location.href='/'">返回首页</button>
     </div>
 
+    <!-- 添加用户弹窗 -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <h2 class="settings-title">添加新用户</h2>
+            <div class="form-group">
+                <label>用户名 *</label>
+                <input type="text" id="newUsername" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码 *</label>
+                <input type="password" id="newPassword" placeholder="请输入密码（至少6位）">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="newIsAdmin"> 设为管理员
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal('userModal')">取消</button>
+                <button class="btn-primary" onclick="createUser()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
     <script>
         const api = window.API;
         let currentUser = null;
@@ -138,6 +311,12 @@
                 return;
             }
             currentUser = user;
+            
+            // 管理员显示用户管理区域
+            if (user.is_admin) {
+                document.getElementById('adminSection').classList.add('show');
+                loadUsers();
+            }
         }
 
         function loadSettings() {
@@ -161,10 +340,12 @@
             try {
                 await fetch('/api/user/settings', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentUser.id },
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': 'Bearer ' + currentUser.id 
+                    },
                     body: JSON.stringify(data)
                 });
-                // 更新本地存储
                 currentUser = { ...currentUser, ...data };
                 localStorage.setItem('user', JSON.stringify(currentUser));
                 showToast('设置已保存');
@@ -173,12 +354,106 @@
             }
         }
 
+        // 加载用户列表
+        async function loadUsers() {
+            if (!currentUser || !currentUser.is_admin) return;
+            
+            try {
+                const res = await fetch('/api/admin/users', { 
+                    headers: { 'Authorization': 'Bearer ' + currentUser.id } 
+                });
+                const data = await res.json();
+                if (data.code === 0) {
+                    renderUsers(data.data || []);
+                }
+            } catch (e) {
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="4">加载失败</td></tr>';
+            }
+        }
+
+        function renderUsers(users) {
+            if (users.length === 0) {
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="4">暂无用户</td></tr>';
+                return;
+            }
+            document.getElementById('usersTable').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.username}</td>
+                    <td>${u.is_admin ? '<span class="badge badge-warning">管理员</span>' : '<span class="badge badge-success">普通用户</span>'}</td>
+                    <td>
+                        ${!u.is_admin ? `<button class="btn-danger" onclick="deleteUser(${u.id})">删除</button>` : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function showAddUserModal() {
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newIsAdmin').checked = false;
+            document.getElementById('userModal').classList.add('show');
+        }
+
+        async function createUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const isAdmin = document.getElementById('newIsAdmin').checked;
+            
+            if (!username || !password) {
+                showToast('请填写用户名和密码');
+                return;
+            }
+            if (password.length < 6) {
+                showToast('密码至少6位');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': 'Bearer ' + currentUser.id 
+                    },
+                    body: JSON.stringify({ username, password, is_admin: isAdmin })
+                });
+                const result = await res.json();
+                if (result.code === 0) {
+                    closeModal('userModal');
+                    loadUsers();
+                    showToast('创建成功');
+                } else {
+                    showToast(result.message || '创建失败');
+                }
+            } catch (e) {
+                showToast('创建失败');
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('确定删除此用户？')) return;
+            try {
+                await fetch(`/api/admin/users/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
+                });
+                loadUsers();
+                showToast('删除成功');
+            } catch (e) {
+                showToast('删除失败');
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
         function showToast(msg) {
-            const toast = document.createElement('div');
-            toast.className = 'toast show';
+            const toast = document.getElementById('toast');
             toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
         checkAuth();

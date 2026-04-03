@@ -665,6 +665,37 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	})
 }
 
+// CreateUser 管理员创建用户
+func (h *Handler) CreateUser(c *gin.Context) {
+	var req model.AdminCreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	user, err := h.userService.CreateUserByAdmin(req.Username, req.Password, req.IsAdmin)
+	if err != nil {
+		code := 500
+		if err == service.ErrUserExists {
+			code = 409
+		}
+		c.JSON(code, model.APIResponse{
+			Code:    code,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.APIResponse{
+		Code:    0,
+		Message: "创建成功",
+		Data:    user,
+	})
+}
+
 // ToggleRegister 切换注册
 func (h *Handler) ToggleRegister(c *gin.Context) {
 	var req model.ToggleRegisterRequest

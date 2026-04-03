@@ -4,27 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - KatelyaTV-Go</title>
-    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .admin-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        :root {
+            --bg-color: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --border-color: #2a2a2a;
+            --text-color: #e0e0e0;
+            --text-secondary: #888;
+            --primary-color: #e50914;
+            --primary-hover: #c62f2f;
         }
-        .admin-header {
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        a { color: inherit; text-decoration: none; }
+        
+        .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        .logo { font-size: 18px; font-weight: bold; color: var(--primary-color); }
+        .header-actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: var(--primary-color); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #333; color: #fff; }
+        .btn-danger { background: #f44336; color: #fff; }
+        .btn-small { padding: 6px 12px; font-size: 12px; }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
         }
-        .admin-tabs {
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 32px; font-weight: bold; color: var(--primary-color); }
+        .stat-label { color: var(--text-secondary); margin-top: 5px; }
+        
+        .tabs {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
         }
-        .admin-tab {
+        .tab {
             padding: 10px 20px;
             background: none;
             border: none;
@@ -33,73 +80,50 @@
             font-size: 14px;
             transition: all 0.3s;
         }
-        .admin-tab.active {
-            color: var(--primary-color);
-            border-bottom: 2px solid var(--primary-color);
-        }
+        .tab.active { color: var(--primary-color); border-bottom: 2px solid var(--primary-color); }
+        .tab:hover { color: var(--text-color); }
+        
         .card {
             background: var(--card-bg);
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
         }
-        .card-title {
-            font-size: 18px;
-            margin-bottom: 15px;
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 15px;
         }
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+        .card-title { font-size: 18px; }
+        .card-actions { display: flex; gap: 10px; }
+        
+        .table { width: 100%; border-collapse: collapse; }
         .table th, .table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
-        .table th {
-            color: var(--text-secondary);
-            font-weight: normal;
-        }
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
+        .table th { color: var(--text-secondary); font-weight: normal; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--text-secondary); }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            cursor: pointer;
-            border: none;
-            transition: all 0.3s;
+            background: var(--bg-color);
+            color: var(--text-color);
         }
-        .btn-edit {
-            background: var(--primary-color);
-            color: #fff;
-        }
-        .btn-delete {
-            background: #f44336;
-            color: #fff;
-        }
-        .btn-danger {
-            background: #f44336;
-            color: #fff;
-        }
-        .switch {
-            position: relative;
-            width: 50px;
-            height: 26px;
-        }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .form-group input:focus { outline: none; border-color: var(--primary-color); }
+        
+        .switch { position: relative; width: 50px; height: 26px; display: inline-block; }
+        .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
             position: absolute;
             cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background-color: #ccc;
             transition: .4s;
             border-radius: 26px;
@@ -115,125 +139,93 @@
             transition: .4s;
             border-radius: 50%;
         }
-        input:checked + .slider {
-            background-color: #4CAF50;
-        }
-        input:checked + .slider:before {
-            transform: translateX(24px);
-        }
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        .form-group {
-            flex: 1;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background: var(--bg-color);
-            color: var(--text-color);
-            box-sizing: border-box;
-        }
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .checkbox-group input {
-            width: auto;
-        }
+        input:checked + .slider { background-color: #4CAF50; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
             z-index: 1000;
-        }
-        .modal.show {
-            display: flex;
             align-items: center;
             justify-content: center;
         }
+        .modal.show { display: flex; }
         .modal-content {
-            background: var(--bg-color);
+            background: var(--card-bg);
             padding: 30px;
             border-radius: 8px;
             max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
         }
-        .modal-title {
-            font-size: 20px;
-            margin-bottom: 20px;
-        }
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
+        .modal-title { font-size: 20px; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
             background: var(--card-bg);
-            padding: 20px;
+            padding: 12px 24px;
             border-radius: 8px;
-            text-align: center;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1001;
         }
-        .stat-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: var(--primary-color);
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border-color);
         }
-        .stat-label {
-            color: var(--text-secondary);
-            margin-top: 5px;
+        .setting-label { font-weight: 500; }
+        .setting-desc { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+        
+        .hidden { display: none; }
+        
+        textarea { min-height: 150px; font-family: monospace; }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
         }
+        .badge-success { background: #4CAF50; color: #fff; }
+        .badge-warning { background: #ff9800; color: #fff; }
+        .badge-danger { background: #f44336; color: #fff; }
     </style>
 </head>
 <body>
     <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <a href="/" class="logo">🎬 KatelyaTV-Go</a>
-                <nav class="nav">
-                    <a href="/" class="nav-item">首页</a>
-                    <a href="/admin" class="nav-item active">管理后台</a>
-                </nav>
-            </div>
+        <a href="/" class="logo">🎬 KatelyaTV-Go</a>
+        <div class="header-actions">
+            <a href="/settings" class="btn btn-secondary">⚙️ 用户设置</a>
+            <a href="/" class="btn btn-secondary">返回首页</a>
+            <button class="btn btn-secondary" onclick="location.reload()">刷新</button>
         </div>
     </header>
 
-    <div class="admin-container">
-        <div class="admin-header">
-            <h1>管理后台</h1>
-            <a href="/" class="btn btn-login">返回首页</a>
-        </div>
-
-        <!-- 统计卡片 -->
+    <div class="container">
+        <h1 style="margin: 20px 0;">管理后台</h1>
+        
+        <!-- 统计 -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-value" id="statUsers">-</div>
                 <div class="stat-label">用户数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statSources">-</div>
+                <div class="stat-label">视频源</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="statFavorites">-</div>
@@ -241,94 +233,112 @@
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="statHistory">-</div>
-                <div class="stat-label">历史记录</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="statSources">-</div>
-                <div class="stat-label">视频源</div>
+                <div class="stat-label">观看记录</div>
             </div>
         </div>
-
+        
         <!-- 标签页 -->
-        <div class="admin-tabs">
-            <button class="admin-tab active" data-tab="sources">视频源管理</button>
-            <button class="admin-tab" data-tab="users">用户管理</button>
-            <button class="admin-tab" data-tab="settings">系统设置</button>
+        <div class="tabs">
+            <button class="tab active" data-tab="sources">视频源管理</button>
+            <button class="tab" data-tab="users">用户管理</button>
+            <button class="tab" data-tab="settings">系统设置</button>
         </div>
-
+        
         <!-- 视频源管理 -->
-        <div class="card" id="tabSources">
-            <div class="card-title">
-                <span>视频源列表</span>
-                <button class="btn-small btn-edit" onclick="showAddSourceModal()">+ 添加源</button>
-            </div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>名称</th>
-                        <th>API地址</th>
-                        <th>成人内容</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="sourcesTable">
-                    <tr><td colspan="6">加载中...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 用户管理 -->
-        <div class="card" id="tabUsers" style="display:none;">
-            <div class="card-title">
-                <span>用户列表</span>
-            </div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>用户名</th>
-                        <th>角色</th>
-                        <th>注册时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTable">
-                    <tr><td colspan="5">加载中...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 系统设置 -->
-        <div class="card" id="tabSettings" style="display:none;">
-            <div class="card-title">
-                <span>系统设置</span>
-            </div>
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="registerSwitch">
-                    <label for="registerSwitch">允许新用户注册</label>
+        <div id="tab-sources" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">视频源列表</span>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-small" onclick="importSources()">📥 导入</button>
+                        <button class="btn btn-secondary btn-small" onclick="exportSources()">📤 导出</button>
+                        <button class="btn btn-primary btn-small" onclick="showAddSourceModal()">➕ 添加源</button>
+                    </div>
                 </div>
-                <p style="color: var(--text-secondary); font-size: 12px; margin-top: 5px;">
-                    关闭后，普通用户将无法自行注册。管理员可手动添加用户。
-                </p>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>API地址</th>
+                            <th>成人内容</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sourcesTable">
+                        <tr><td colspan="6">加载中...</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <button class="btn-small btn-edit" onclick="saveSettings()">保存设置</button>
+        </div>
+        
+        <!-- 用户管理 -->
+        <div id="tab-users" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">用户列表</span>
+                    <div class="card-actions">
+                        <button class="btn btn-primary btn-small" onclick="showAddUserModal()">➕ 添加用户</button>
+                    </div>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>角色</th>
+                            <th>注册时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable">
+                        <tr><td colspan="5">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 系统设置 -->
+        <div id="tab-settings" class="tab-content hidden">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">系统设置</span>
+                </div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">允许新用户注册</div>
+                        <div class="setting-desc">关闭后，普通用户无法自行注册</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="registerSwitch" onchange="saveRegisterSetting()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">缓存时间</div>
+                        <div class="setting-desc">API缓存时间（秒）</div>
+                    </div>
+                    <input type="number" id="cacheTime" value="7200" style="width: 100px;" onchange="saveCacheSetting()">
+                </div>
+            </div>
         </div>
     </div>
-
+    
     <!-- 添加/编辑源弹窗 -->
     <div class="modal" id="sourceModal">
         <div class="modal-content">
-            <h2 class="modal-title" id="modalTitle">添加视频源</h2>
+            <h2 class="modal-title" id="sourceModalTitle">添加视频源</h2>
             <input type="hidden" id="sourceId">
             <div class="form-group">
-                <label>源名称</label>
-                <input type="text" id="sourceName" placeholder="例如：默认资源站">
+                <label>源名称 *</label>
+                <input type="text" id="sourceName" placeholder="例如：极速资源">
             </div>
             <div class="form-group">
-                <label>API地址</label>
+                <label>API地址 *</label>
                 <input type="text" id="sourceApi" placeholder="例如：https://api.example.com/provide/vod">
             </div>
             <div class="form-group">
@@ -336,150 +346,201 @@
                 <input type="text" id="sourceDetail" placeholder="例如：https://example.com">
             </div>
             <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="sourceIsAdult">
-                    <label for="sourceIsAdult">标记为成人内容源</label>
-                </div>
+                <label>
+                    <input type="checkbox" id="sourceIsAdult"> 标记为成人内容源
+                </label>
             </div>
             <div class="modal-actions">
-                <button class="btn-small" onclick="closeModal()">取消</button>
-                <button class="btn-small btn-edit" onclick="saveSource()">保存</button>
+                <button class="btn btn-secondary" onclick="closeModal('sourceModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveSource()">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加用户弹窗 -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <h2 class="modal-title">添加新用户</h2>
+            <div class="form-group">
+                <label>用户名 *</label>
+                <input type="text" id="newUsername" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码 *</label>
+                <input type="password" id="newPassword" placeholder="请输入密码（至少6位）">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="newIsAdmin"> 设为管理员
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('userModal')">取消</button>
+                <button class="btn btn-primary" onclick="createUser()">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导入源弹窗 -->
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <h2 class="modal-title">导入视频源</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                支持 JSON 格式，格式如下：
+            </p>
+            <textarea id="importData" placeholder='[
+  {"name": "源名称", "api": "https://...", "is_adult": false},
+  ...
+]'></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('importModal')">取消</button>
+                <button class="btn btn-primary" onclick="doImport()">导入</button>
             </div>
         </div>
     </div>
 
+    <div class="toast" id="toast"></div>
+
     <script>
-        const api = window.API;
-        let currentUser = null;
-
-        // 检查登录状态
+        let token = localStorage.getItem('token');
+        let sources = [];
+        
+        // 检查权限
         function checkAuth() {
-            const user = api.getUser();
-            if (!user) {
-                location.href = '/login';
-                return;
-            }
-            currentUser = user;
-            if (!user.is_admin) {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (!user.id || !user.is_admin) {
                 alert('需要管理员权限');
-                location.href = '/';
-                return;
+                location.href = '/login';
             }
+            token = user.id;
         }
-
-        // 加载统计数据
+        
+        // 初始化
+        checkAuth();
+        loadStats();
+        loadSources();
+        loadUsers();
+        loadSettings();
+        
+        // 标签页切换
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+            });
+        });
+        
+        // 加载统计
         async function loadStats() {
             try {
-                const res = await fetch('/api/admin/stats', {
-                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
-                });
+                const res = await fetch('/api/admin/stats', { headers: { 'Authorization': 'Bearer ' + token } });
                 const data = await res.json();
                 if (data.code === 0) {
                     document.getElementById('statUsers').textContent = data.total_users || 0;
+                    document.getElementById('statFavorites').textContent = data.total_favorites || 0;
+                    document.getElementById('statHistory').textContent = data.total_history || 0;
                 }
-            } catch (err) {}
+            } catch (e) {}
         }
-
+        
         // 加载视频源
         async function loadSources() {
             try {
-                const res = await fetch('/api/admin/sources', {
-                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
-                });
+                const res = await fetch('/api/admin/sources', { headers: { 'Authorization': 'Bearer ' + token } });
                 const data = await res.json();
                 if (data.code === 0) {
-                    renderSources(data.data || []);
+                    sources = data.data || [];
+                    renderSources();
+                    document.getElementById('statSources').textContent = sources.length;
                 }
-            } catch (err) {
+            } catch (e) {
                 document.getElementById('sourcesTable').innerHTML = '<tr><td colspan="6">加载失败</td></tr>';
             }
         }
-
-        function renderSources(sources) {
+        
+        function renderSources() {
             if (sources.length === 0) {
-                document.getElementById('sourcesTable').innerHTML = '<tr><td colspan="6">暂无数据</td></tr>';
+                document.getElementById('sourcesTable').innerHTML = '<tr><td colspan="6">暂无数据，请添加视频源</td></tr>';
                 return;
             }
             document.getElementById('sourcesTable').innerHTML = sources.map(s => `
                 <tr>
                     <td>${s.id}</td>
                     <td>${s.name}</td>
-                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${s.api}</td>
-                    <td>${s.is_adult ? '是' : '否'}</td>
-                    <td>${s.enabled ? '启用' : '禁用'}</td>
+                    <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;">${s.api}</td>
+                    <td>${s.is_adult ? '<span class="badge badge-warning">是</span>' : '<span class="badge badge-success">否</span>'}</td>
+                    <td>${s.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
                     <td>
-                        <button class="btn-small btn-edit" onclick="editSource(${s.id})">编辑</button>
-                        <button class="btn-small btn-delete" onclick="deleteSource(${s.id})">删除</button>
+                        <button class="btn btn-secondary btn-small" onclick="editSource(${s.id})">编辑</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteSource(${s.id})">删除</button>
                     </td>
                 </tr>
             `).join('');
-            document.getElementById('statSources').textContent = sources.length;
         }
-
+        
         // 加载用户
         async function loadUsers() {
             try {
-                const res = await fetch('/api/admin/users', {
-                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
-                });
+                const res = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
                 const data = await res.json();
                 if (data.code === 0) {
                     renderUsers(data.data || []);
                 }
-            } catch (err) {
+            } catch (e) {
                 document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">加载失败</td></tr>';
             }
         }
-
+        
         function renderUsers(users) {
             if (users.length === 0) {
-                document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">暂无数据</td></tr>';
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="5">暂无用户</td></tr>';
                 return;
             }
             document.getElementById('usersTable').innerHTML = users.map(u => `
                 <tr>
                     <td>${u.id}</td>
                     <td>${u.username}</td>
-                    <td>${u.is_admin ? '管理员' : '普通用户'}</td>
-                    <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                    <td>${u.is_admin ? '<span class="badge badge-warning">管理员</span>' : '<span class="badge badge-success">普通用户</span>'}</td>
+                    <td>${new Date(u.created_at).toLocaleString()}</td>
                     <td>
-                        ${!u.is_admin ? `<button class="btn-small btn-delete" onclick="deleteUser(${u.id})">删除</button>` : '-'}
+                        ${!u.is_admin ? `<button class="btn btn-danger btn-small" onclick="deleteUser(${u.id})">删除</button>` : '-'}
                     </td>
                 </tr>
             `).join('');
         }
-
+        
         // 加载设置
         async function loadSettings() {
             try {
-                const res = await fetch('/api/admin/config', {
-                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
-                });
+                const res = await fetch('/api/admin/config', { headers: { 'Authorization': 'Bearer ' + token } });
                 const data = await res.json();
                 if (data.code === 0) {
                     document.getElementById('registerSwitch').checked = data.data?.register_enabled !== false;
+                    document.getElementById('cacheTime').value = data.data?.config?.cache_time || 7200;
                 }
-            } catch (err) {}
+            } catch (e) {}
         }
-
-        // 保存设置
-        async function saveSettings() {
+        
+        // 保存注册设置
+        async function saveRegisterSetting() {
             const enabled = document.getElementById('registerSwitch').checked;
             try {
                 await fetch('/api/admin/register', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentUser.id },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                     body: JSON.stringify({ enabled })
                 });
-                alert('设置已保存');
-            } catch (err) {
-                alert('保存失败');
+                showToast(enabled ? '注册已开启' : '注册已关闭');
+            } catch (e) {
+                showToast('保存失败');
             }
         }
-
-        // 弹窗操作
+        
+        // 显示添加源弹窗
         function showAddSourceModal() {
-            document.getElementById('modalTitle').textContent = '添加视频源';
+            document.getElementById('sourceModalTitle').textContent = '添加视频源';
             document.getElementById('sourceId').value = '';
             document.getElementById('sourceName').value = '';
             document.getElementById('sourceApi').value = '';
@@ -487,23 +548,21 @@
             document.getElementById('sourceIsAdult').checked = false;
             document.getElementById('sourceModal').classList.add('show');
         }
-
-        async function editSource(id) {
-            const sources = await fetch('/api/admin/sources', {
-                headers: { 'Authorization': 'Bearer ' + currentUser.id }
-            }).then(r => r.json()).then(d => d.data || []);
+        
+        // 编辑源
+        function editSource(id) {
             const source = sources.find(s => s.id === id);
-            if (source) {
-                document.getElementById('modalTitle').textContent = '编辑视频源';
-                document.getElementById('sourceId').value = source.id;
-                document.getElementById('sourceName').value = source.name;
-                document.getElementById('sourceApi').value = source.api;
-                document.getElementById('sourceDetail').value = source.detail || '';
-                document.getElementById('sourceIsAdult').checked = source.is_adult;
-                document.getElementById('sourceModal').classList.add('show');
-            }
+            if (!source) return;
+            document.getElementById('sourceModalTitle').textContent = '编辑视频源';
+            document.getElementById('sourceId').value = source.id;
+            document.getElementById('sourceName').value = source.name;
+            document.getElementById('sourceApi').value = source.api;
+            document.getElementById('sourceDetail').value = source.detail || '';
+            document.getElementById('sourceIsAdult').checked = source.is_adult;
+            document.getElementById('sourceModal').classList.add('show');
         }
-
+        
+        // 保存源
         async function saveSource() {
             const id = document.getElementById('sourceId').value;
             const data = {
@@ -512,70 +571,191 @@
                 detail: document.getElementById('sourceDetail').value,
                 is_adult: document.getElementById('sourceIsAdult').checked
             };
-
-            const url = id ? `/api/admin/sources/${id}` : '/api/admin/sources';
-            const method = id ? 'PUT' : 'POST';
-
+            
+            if (!data.name || !data.api) {
+                showToast('请填写名称和API地址');
+                return;
+            }
+            
             try {
-                await fetch(url, {
+                const url = id ? `/api/admin/sources/${id}` : '/api/admin/sources';
+                const method = id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
                     method,
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentUser.id },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                     body: JSON.stringify(data)
                 });
-                closeModal();
-                loadSources();
-            } catch (err) {
-                alert('保存失败');
+                const result = await res.json();
+                if (result.code === 0) {
+                    closeModal('sourceModal');
+                    loadSources();
+                    showToast('保存成功');
+                } else {
+                    showToast(result.message || '保存失败');
+                }
+            } catch (e) {
+                showToast('保存失败');
             }
         }
-
+        
+        // 删除源
         async function deleteSource(id) {
             if (!confirm('确定删除此视频源？')) return;
             try {
                 await fetch(`/api/admin/sources/${id}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 loadSources();
-            } catch (err) {
-                alert('删除失败');
+                showToast('删除成功');
+            } catch (e) {
+                showToast('删除失败');
             }
         }
-
+        
+        // 导出源
+        function exportSources() {
+            const data = sources.map(s => ({
+                name: s.name,
+                api: s.api,
+                detail: s.detail,
+                is_adult: s.is_adult
+            }));
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sources_' + new Date().toISOString().slice(0, 10) + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('导出成功');
+        }
+        
+        // 导入源
+        function importSources() {
+            document.getElementById('importData').value = '';
+            document.getElementById('importModal').classList.add('show');
+        }
+        
+        // 执行导入
+        async function doImport() {
+            const text = document.getElementById('importData').value.trim();
+            if (!text) {
+                showToast('请输入数据');
+                return;
+            }
+            try {
+                const data = JSON.parse(text);
+                if (!Array.isArray(data)) {
+                    showToast('数据格式错误');
+                    return;
+                }
+                let count = 0;
+                for (const item of data) {
+                    if (!item.name || !item.api) continue;
+                    try {
+                        const res = await fetch('/api/admin/sources', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                            body: JSON.stringify({
+                                name: item.name,
+                                api: item.api,
+                                detail: item.detail || '',
+                                is_adult: item.is_adult || false
+                            })
+                        });
+                        const result = await res.json();
+                        if (result.code === 0) count++;
+                    } catch (e) {}
+                }
+                closeModal('importModal');
+                loadSources();
+                showToast(`成功导入 ${count} 个源`);
+            } catch (e) {
+                showToast('数据解析失败');
+            }
+        }
+        
+        // 显示添加用户弹窗
+        function showAddUserModal() {
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newIsAdmin').checked = false;
+            document.getElementById('userModal').classList.add('show');
+        }
+        
+        // 创建用户
+        async function createUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const isAdmin = document.getElementById('newIsAdmin').checked;
+            
+            if (!username || !password) {
+                showToast('请填写用户名和密码');
+                return;
+            }
+            if (password.length < 6) {
+                showToast('密码至少6位');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ username, password, is_admin: isAdmin })
+                });
+                const result = await res.json();
+                if (result.code === 0) {
+                    closeModal('userModal');
+                    loadUsers();
+                    loadStats();
+                    showToast('创建成功');
+                } else {
+                    showToast(result.message || '创建失败');
+                }
+            } catch (e) {
+                showToast('创建失败');
+            }
+        }
+        
+        // 删除用户
         async function deleteUser(id) {
             if (!confirm('确定删除此用户？')) return;
             try {
                 await fetch(`/api/admin/users/${id}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + currentUser.id }
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 loadUsers();
-            } catch (err) {
-                alert('删除失败');
+                loadStats();
+                showToast('删除成功');
+            } catch (e) {
+                showToast('删除失败');
             }
         }
-
-        function closeModal() {
-            document.getElementById('sourceModal').classList.remove('show');
+        
+        // 关闭弹窗
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
         }
-
-        // 标签页切换
-        document.querySelectorAll('.admin-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                const tabId = tab.dataset.tab;
-                document.querySelectorAll('.card').forEach(c => c.style.display = 'none');
-                document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1)).style.display = 'block';
+        
+        // Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        // 点击弹窗外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                }
             });
         });
-
-        // 初始化
-        checkAuth();
-        loadStats();
-        loadSources();
-        loadUsers();
-        loadSettings();
     </script>
 </body>
 </html>

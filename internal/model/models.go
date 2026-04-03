@@ -133,6 +133,13 @@ type ToggleRegisterRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
+// AdminCreateUserRequest 管理员创建用户请求
+type AdminCreateUserRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Password string `json:"password" binding:"required,min=6,max=100"`
+	IsAdmin  bool   `json:"is_admin"`
+}
+
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
 	Theme        string `json:"theme"`

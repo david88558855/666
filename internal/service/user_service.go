@@ -140,6 +140,40 @@ func (s *UserService) Delete(id int64, currentUserID int64) error {
 	return s.repo.Delete(id)
 }
 
+// CreateUserByAdmin 管理员创建用户
+func (s *UserService) CreateUserByAdmin(username, password string, isAdmin bool) (*model.User, error) {
+	// 检查用户名是否存在
+	_, err := s.repo.GetByUsername(username)
+	if err == nil {
+		return nil, ErrUserExists
+	}
+	if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	// 哈希密码
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &model.User{
+		Username:     username,
+		PasswordHash: string(hash),
+		IsAdmin:      isAdmin,
+		IsAdult:      false,
+		Theme:        "auto",
+		Layout:       "grid",
+		ItemsPerPage: 24,
+	}
+
+	if err := s.repo.Create(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // GetFavorites 获取收藏
 func (s *UserService) GetFavorites(userID int64) ([]*model.Favorite, error) {
 	return s.favRepo.GetByUserID(userID)

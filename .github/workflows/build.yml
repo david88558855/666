@@ -29,7 +29,7 @@ jobs:
       
       - name: Package
         run: |
-          cat > config.example.json << 'EOF'
+          cat > config.json << 'EOF'
           {
             "cache_time": 7200,
             "api_site": {}
@@ -45,7 +45,7 @@ jobs:
           EOF
           chmod +x start.sh
           
-          tar -czf katelyatv-go_linux_amd64.tar.gz katelyatv-go config.example.json start.sh
+          tar -czf katelyatv-go_linux_amd64.tar.gz katelyatv-go config.json start.sh
       
       - name: Upload binary
         uses: actions/upload-artifact@v4

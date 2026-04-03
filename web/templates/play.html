@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>播放 - KatelyaTV-Go</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <!-- HLS.js for m3u8 playback -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         .player-container {
             max-width: 1200px;
@@ -23,11 +25,35 @@
             width: 100%;
             height: 100%;
         }
+        .source-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .source-tab {
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .source-tab:hover {
+            border-color: var(--primary-color);
+        }
+        .source-tab.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
         .episode-list {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
         }
         .episode-item {
             padding: 8px 16px;
@@ -36,8 +62,9 @@
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.3s;
-            min-width: 60px;
+            min-width: 80px;
             text-align: center;
+            font-size: 13px;
         }
         .episode-item:hover {
             background: var(--primary-color);
@@ -94,6 +121,20 @@
             margin-bottom: 20px;
             color: var(--primary-color);
         }
+        .player-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+            display: none;
+        }
+        .section-title {
+            margin: 20px 0 10px;
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -113,9 +154,13 @@
         <a href="/" class="back-link">← 返回首页</a>
         
         <div class="video-wrapper">
-            <video id="videoPlayer" controls autoplay>
+            <video id="videoPlayer" controls autoplay playsinline>
                 您的浏览器不支持 video 标签。
             </video>
+            <div class="player-error" id="playerError">
+                <p>⚠️ 视频加载失败</p>
+                <p style="font-size: 12px; margin-top: 10px;">请尝试切换其他播放源</p>
+            </div>
         </div>
 
         <div class="detail-info">
@@ -127,7 +172,12 @@
             <div class="detail-desc" id="videoDesc"></div>
         </div>
 
-        <h3 style="margin: 20px 0;">选集</h3>
+        <div class="section-title">📺 播放源</div>
+        <div class="source-tabs" id="sourceTabs">
+            <!-- 动态加载 -->
+        </div>
+
+        <div class="section-title">🎬 选集</div>
         <div class="episode-list" id="episodeList">
             <!-- 动态加载 -->
         </div>
@@ -138,6 +188,9 @@
     <script src="/static/js/api.js"></script>
     <script>
         const api = window.API;
+        let hls = null;
+        let currentSourceIndex = 0;
+        let allEpisodes = [];  // 存储所有播放源的剧集
         
         // 获取URL参数
         function getQueryParam(name) {
@@ -155,7 +208,7 @@
         // 加载详情
         async function loadDetail() {
             try {
-                const res = await fetch(`/api/detail/${encodeURIComponent(site)}/${id}`);
+                const res = await fetch(`/api/detail?site=${encodeURIComponent(site)}&id=${id}`);
                 const data = await res.json();
                 
                 if (data.code === 0 && data.data) {
@@ -165,30 +218,118 @@
                         `${detail.year || ''} ${detail.area || ''} ${detail.lang || ''}`;
                     document.getElementById('videoDesc').textContent = detail.desc || '暂无简介';
 
-                    // 渲染选集
-                    renderEpisodes(detail.episodes);
-
-                    // 自动播放第一集
-                    if (detail.episodes && detail.episodes.length > 0) {
-                        playEpisode(detail.episodes[0]);
-                    }
+                    // 按播放源分组剧集
+                    groupEpisodesBySource(detail.episodes || []);
+                } else {
+                    showToast('加载详情失败');
+                    document.getElementById('episodeList').innerHTML = '<p>加载失败，请刷新重试</p>';
                 }
             } catch (err) {
+                console.error('加载详情失败:', err);
                 showToast('加载详情失败');
             }
         }
 
+        // 按播放源分组剧集
+        function groupEpisodesBySource(episodes) {
+            const sourceMap = new Map();
+            
+            episodes.forEach(ep => {
+                // 从剧集名称提取播放源，格式: "[源名] 第X集"
+                const match = ep.name.match(/^\[([^\]]+)\]\s*(.+)$/);
+                if (match) {
+                    const sourceName = match[1];
+                    const epName = match[2];
+                    if (!sourceMap.has(sourceName)) {
+                        sourceMap.set(sourceName, []);
+                    }
+                    sourceMap.get(sourceName).push({
+                        ...ep,
+                        displayName: epName,
+                        sourceName: sourceName
+                    });
+                } else {
+                    // 没有源名标记的归入默认源
+                    if (!sourceMap.has('默认')) {
+                        sourceMap.set('默认', []);
+                    }
+                    sourceMap.get('默认').push({
+                        ...ep,
+                        displayName: ep.name,
+                        sourceName: '默认'
+                    });
+                }
+            });
+
+            allEpisodes = Array.from(sourceMap.entries()).map(([name, eps], index) => ({
+                name,
+                episodes: eps,
+                index
+            }));
+
+            renderSourceTabs();
+            
+            // 默认选择第一个源
+            if (allEpisodes.length > 0) {
+                selectSource(0);
+            }
+        }
+
+        // 渲染播放源选项卡
+        function renderSourceTabs() {
+            const container = document.getElementById('sourceTabs');
+            if (allEpisodes.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-secondary);">暂无播放源</span>';
+                return;
+            }
+
+            container.innerHTML = allEpisodes.map((source, idx) => `
+                <button class="source-tab ${idx === 0 ? 'active' : ''}" data-index="${idx}">
+                    ${source.name} (${source.episodes.length}集)
+                </button>
+            `).join('');
+
+            container.querySelectorAll('.source-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const index = parseInt(tab.dataset.index);
+                    selectSource(index);
+                });
+            });
+        }
+
+        // 选择播放源
+        function selectSource(index) {
+            currentSourceIndex = index;
+            const source = allEpisodes[index];
+            if (!source) return;
+
+            // 更新选项卡状态
+            document.querySelectorAll('.source-tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+
+            // 渲染该剧集列表
+            renderEpisodes(source.episodes);
+
+            // 自动播放第一集
+            if (source.episodes.length > 0) {
+                playEpisode(source.episodes[0]);
+            }
+        }
+
+        // 渲染剧集列表
         function renderEpisodes(episodes) {
             const container = document.getElementById('episodeList');
             if (!episodes || episodes.length === 0) {
-                container.innerHTML = '<p>暂无选集信息</p>';
+                container.innerHTML = '<p>暂无选集</p>';
                 return;
             }
 
             container.innerHTML = episodes.map((ep, idx) => `
                 <button class="episode-item ${idx === 0 ? 'active' : ''}" 
-                        data-url="${ep.play_url || ep.PlayURL || ''}">
-                    ${ep.name || `第${idx + 1}集`}
+                        data-url="${ep.play_url || ''}"
+                        data-index="${idx}">
+                    ${ep.displayName || `第${idx + 1}集`}
                 </button>
             `).join('');
 
@@ -196,15 +337,73 @@
                 btn.addEventListener('click', () => {
                     container.querySelectorAll('.episode-item').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    playEpisode({ play_url: btn.dataset.url });
+                    const url = btn.dataset.url;
+                    playVideo(url);
                 });
             });
         }
 
+        // 播放剧集
         function playEpisode(episode) {
             const url = episode.play_url || episode.PlayURL || episode.url;
             if (url) {
-                document.getElementById('videoPlayer').src = url;
+                playVideo(url);
+            }
+        }
+
+        // 核心播放函数 - 支持 m3u8 和普通视频
+        function playVideo(url) {
+            if (!url) {
+                showToast('无效的播放地址');
+                return;
+            }
+
+            const video = document.getElementById('videoPlayer');
+            const errorDiv = document.getElementById('playerError');
+            errorDiv.style.display = 'none';
+
+            // 销毁之前的 HLS 实例
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+
+            // 判断是否为 m3u8
+            if (url.includes('.m3u8') || url.includes('m3u8')) {
+                if (Hls.isSupported()) {
+                    hls = new Hls({
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60
+                    });
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        video.play().catch(e => console.log('自动播放被阻止'));
+                    });
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            console.error('HLS 播放错误:', data);
+                            errorDiv.style.display = 'block';
+                            // 尝试切换到下一个源
+                            if (allEpisodes.length > currentSourceIndex + 1) {
+                                setTimeout(() => {
+                                    showToast('正在尝试其他播放源...');
+                                    selectSource(currentSourceIndex + 1);
+                                }, 2000);
+                            }
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Safari 原生支持
+                    video.src = url;
+                    video.play().catch(e => console.log('自动播放被阻止'));
+                } else {
+                    showToast('浏览器不支持 HLS 播放');
+                }
+            } else {
+                // 普通视频直接播放
+                video.src = url;
+                video.play().catch(e => console.log('自动播放被阻止'));
             }
         }
 
@@ -217,51 +416,27 @@
                 return;
             }
 
-            await fetch('/api/user/favorites', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.id },
-                body: JSON.stringify({
-                    site: site,
-                    site_name: '当前源',
-                    video_id: id,
-                    title: decodeURIComponent(title),
-                    cover: cover,
-                    type: 'movie'
-                })
-            });
-            showToast('收藏成功');
-            document.getElementById('favoriteBtn').classList.add('favorited');
+            try {
+                await fetch('/api/user/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.id },
+                    body: JSON.stringify({
+                        site: site,
+                        site_name: '当前源',
+                        video_id: id,
+                        title: decodeURIComponent(title),
+                        cover: cover,
+                        type: 'movie'
+                    })
+                });
+                showToast('收藏成功');
+                document.getElementById('favoriteBtn').classList.add('favorited');
+            } catch (e) {
+                showToast('收藏失败');
+            }
         });
 
-        // 添加历史记录
-        async function addHistory() {
-            const user = api.getUser();
-            if (!user) return;
-
-            const video = document.getElementById('videoPlayer');
-            await fetch('/api/user/history', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + user.id },
-                body: JSON.stringify({
-                    site: site,
-                    site_name: '当前源',
-                    video_id: id,
-                    title: decodeURIComponent(title),
-                    cover: cover,
-                    type: 'movie',
-                    episode: 1,
-                    progress: Math.floor(video.currentTime),
-                    duration: Math.floor(video.duration)
-                })
-            });
-        }
-
-        document.getElementById('videoPlayer').addEventListener('timeupdate', () => {
-            localStorage.setItem('history_' + site + '_' + id, JSON.stringify({
-                time: document.getElementById('videoPlayer').currentTime
-            }));
-        });
-
+        // Toast提示
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
@@ -269,6 +444,14 @@
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', () => {
+            if (hls) {
+                hls.destroy();
+            }
+        });
+
+        // 开始加载
         loadDetail();
     </script>
 </body>

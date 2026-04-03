@@ -121,5 +121,58 @@ func initSchema(db *sql.DB) error {
 	`
 
 	_, err := db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 检查是否已有视频源，没有则插入默认源
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM video_sources").Scan(&count)
+	if count == 0 {
+		insertDefaultSources(db)
+	}
+
+	return nil
+}
+
+// 默认视频源
+var defaultSources = []struct {
+	name    string
+	api     string
+	detail  string
+	isAdult bool
+}{
+	{"电影天堂资源", "http://caiji.dyttzyapi.com/api.php/provide/vod", "http://caiji.dyttzyapi.com", false},
+	{"如意资源", "http://cj.rycjapi.com/api.php/provide/vod", "", false},
+	{"暴风资源", "https://bfzyapi.com/api.php/provide/vod", "", false},
+	{"天涯资源", "https://tyyszy.com/api.php/provide/vod", "", false},
+	{"非凡影视", "http://ffzy5.tv/api.php/provide/vod", "http://ffzy5.tv", false},
+	{"360资源", "https://360zy.com/api.php/provide/vod", "", false},
+	{"茅台资源", "https://caiji.maotaizy.cc/api.php/provide/vod", "", false},
+	{"卧龙资源", "https://wolongzyw.com/api.php/provide/vod", "", false},
+	{"极速资源", "https://jszyapi.com/api.php/provide/vod", "https://jszyapi.com", false},
+	{"豆瓣资源", "https://dbzy.tv/api.php/provide/vod", "", false},
+	{"魔爪资源", "https://mozhuazy.com/api.php/provide/vod", "", false},
+	{"魔都资源", "https://www.mdzyapi.com/api.php/provide/vod", "", false},
+	{"最大资源", "https://api.zuidapi.com/api.php/provide/vod", "", false},
+	{"樱花资源", "https://m3u8.apiyhzy.com/api.php/provide/vod", "", false},
+	{"无尽资源", "https://api.wujinapi.me/api.php/provide/vod", "", false},
+	{"旺旺短剧", "https://wwzy.tv/api.php/provide/vod", "", false},
+	{"iKun资源", "https://ikunzyapi.com/api.php/provide/vod", "", false},
+	{"量子资源站", "https://cj.lziapi.com/api.php/provide/vod", "", false},
+	{"小猫咪资源", "https://zy.xmm.hk/api.php/provide/vod", "", false},
+}
+
+// insertDefaultSources 插入默认视频源
+func insertDefaultSources(db *sql.DB) {
+	stmt, err := db.Prepare(`INSERT INTO video_sources (name, api, detail, is_adult, sort_order, enabled, created_at) 
+		VALUES (?, ?, ?, ?, ?, 1, datetime('now'))`)
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+
+	for i, src := range defaultSources {
+		_, _ = stmt.Exec(src.name, src.api, src.detail, src.isAdult, i)
+	}
 }

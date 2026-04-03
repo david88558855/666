@@ -294,11 +294,19 @@ func (h *Handler) Search(c *gin.Context) {
 
 // GetDetail 获取详情
 func (h *Handler) GetDetail(c *gin.Context) {
-	site := c.Param("site")
-	id := c.Param("id")
+	site := c.Query("site")
+	id := c.Query("id")
 
 	// URL解码
 	site, _ = url.QueryUnescape(site)
+
+	if site == "" || id == "" {
+		c.JSON(http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少必要参数",
+		})
+		return
+	}
 
 	detail, err := h.searchService.GetDetail(site, id)
 	if err != nil {
@@ -318,8 +326,8 @@ func (h *Handler) GetDetail(c *gin.Context) {
 
 // GetPlayUrl 获取播放地址
 func (h *Handler) GetPlayUrl(c *gin.Context) {
-	site := c.Param("site")
-	id := c.Param("id")
+	site := c.Query("site")
+	id := c.Query("id")
 	episodeID := c.Query("episode")
 
 	// URL解码

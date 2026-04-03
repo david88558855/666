@@ -74,8 +74,8 @@ func main() {
 
 		api.GET("/categories", h.GetCategories)
 		api.GET("/search", h.Search)
-		api.GET("/detail/:site/:id", h.GetDetail)
-		api.GET("/play/:site/:id", h.GetPlayUrl)
+		api.GET("/detail", h.GetDetail)       // 使用查询参数 ?site=&id=
+		api.GET("/play", h.GetPlayUrl)         // 使用查询参数 ?site=&id=&episode=
 		api.GET("/home", h.GetHomeData)
 		api.GET("/tvbox", h.GetTVBoxConfig)
 
@@ -92,7 +92,7 @@ func main() {
 		}
 
 		admin := api.Group("/admin")
-		admin.Use(h.AdminRequired())
+		admin.Use(h.AuthRequired(), h.AdminRequired())
 		{
 			admin.GET("/users", h.GetUsers)
 			admin.POST("/users", h.CreateUser)

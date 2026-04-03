@@ -13,20 +13,33 @@
         }
         .search-header {
             margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
         }
         .search-input-large {
-            width: 100%;
+            flex: 1;
             padding: 16px 20px;
             font-size: 18px;
             border: 2px solid var(--border-color);
             border-radius: 8px;
             background: var(--card-bg);
             color: var(--text-color);
-            box-sizing: border-box;
         }
         .search-input-large:focus {
             outline: none;
             border-color: var(--primary-color);
+        }
+        .search-btn {
+            padding: 16px 30px;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .search-btn:hover {
+            opacity: 0.9;
         }
         .search-results {
             min-height: 400px;
@@ -39,6 +52,59 @@
         .loading {
             text-align: center;
             padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .pagination button.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .result-info {
+            margin-bottom: 20px;
+            color: var(--text-secondary);
+        }
+        .source-filter {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .source-filter button {
+            padding: 6px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .source-filter button.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
         }
     </style>
 </head>
@@ -58,6 +124,7 @@
     <div class="search-page">
         <div class="search-header">
             <input type="text" id="searchInput" class="search-input-large" placeholder="搜索电影、电视剧、综艺、动漫..." autofocus>
+            <button class="search-btn" id="searchBtn">搜索</button>
         </div>
 
         <div class="search-results" id="searchResults">
@@ -65,71 +132,182 @@
                 <p>输入关键词开始搜索</p>
             </div>
         </div>
+
+        <div class="pagination" id="pagination" style="display:none;"></div>
     </div>
 
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/api.js"></script>
     <script>
         const api = window.API;
         const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
         const resultsContainer = document.getElementById('searchResults');
+        const paginationContainer = document.getElementById('pagination');
 
-        // 自动搜索
-        let searchTimeout;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
+        let allResults = [];
+        let currentPage = 1;
+        const itemsPerPage = 24;
+
+        // 初始化 - 检查URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialQuery = urlParams.get('q');
+        if (initialQuery) {
+            searchInput.value = initialQuery;
+            search(initialQuery);
+        }
+
+        // 搜索按钮点击
+        searchBtn.addEventListener('click', () => {
             const query = searchInput.value.trim();
-            if (query.length < 2) {
-                resultsContainer.innerHTML = '<div class="no-results"><p>输入关键词开始搜索</p></div>';
-                return;
+            if (query) {
+                doSearch(query);
             }
-            searchTimeout = setTimeout(() => search(query), 300);
         });
 
+        // 回车搜索
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                if (query) {
+                    doSearch(query);
+                }
+            }
+        });
+
+        async function doSearch(query) {
+            // 更新URL
+            window.history.pushState({}, '', `/search?q=${encodeURIComponent(query)}`);
+            await search(query);
+        }
+
         async function search(query) {
-            resultsContainer.innerHTML = '<div class="loading">搜索中...</div>';
+            resultsContainer.innerHTML = '<div class="loading">🔍 搜索中...</div>';
+            paginationContainer.style.display = 'none';
 
             try {
-                const user = api.getUser();
-                const headers = {};
-                if (user) headers['Authorization'] = 'Bearer ' + user.id;
-
-                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { headers });
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                 const data = await res.json();
 
                 if (data.code === 0 && data.data && data.data.length > 0) {
-                    renderResults(data.data);
+                    allResults = data.data;
+                    currentPage = 1;
+                    renderResults();
                 } else {
-                    resultsContainer.innerHTML = '<div class="no-results"><p>未找到相关结果</p></div>';
+                    allResults = [];
+                    resultsContainer.innerHTML = '<div class="no-results"><p>未找到相关结果</p><p style="font-size:14px;margin-top:10px;">试试其他关键词</p></div>';
                 }
             } catch (err) {
+                console.error('搜索失败:', err);
                 resultsContainer.innerHTML = '<div class="no-results"><p>搜索失败，请稍后重试</p></div>';
             }
         }
 
-        function renderResults(items) {
-            resultsContainer.innerHTML = `
-                <div class="section-title">找到 ${items.length} 个结果</div>
-                <div class="video-grid">
-                    ${items.map(item => `
-                        <a href="/play?site=${encodeURIComponent(item.site)}&id=${item.id}&title=${encodeURIComponent(item.title)}&cover=${encodeURIComponent(item.cover)}" class="video-card">
-                            <div class="video-cover">
-                                <img src="${item.cover || '/static/img/placeholder.png'}" alt="${item.title}" loading="lazy">
-                                <span class="video-type">${item.type === 'tv' ? '剧' : '影'}</span>
+        function renderResults() {
+            const total = allResults.length;
+            const totalPages = Math.ceil(total / itemsPerPage);
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageItems = allResults.slice(start, end);
+
+            let html = `<div class="result-info">找到 ${total} 个结果，第 ${currentPage}/${totalPages} 页</div>`;
+            
+            // 按源分组显示
+            const sourceGroups = {};
+            pageItems.forEach(item => {
+                const sourceName = item.site_name || '未知源';
+                if (!sourceGroups[sourceName]) {
+                    sourceGroups[sourceName] = [];
+                }
+                sourceGroups[sourceName].push(item);
+            });
+
+            html += '<div class="video-grid">';
+            pageItems.forEach(item => {
+                html += `
+                    <a href="/play?site=${encodeURIComponent(item.site)}&id=${item.id}&title=${encodeURIComponent(item.title)}&cover=${encodeURIComponent(item.cover || '')}" class="video-card">
+                        <div class="video-cover">
+                            <img src="${item.cover || '/static/img/placeholder.png'}" alt="${item.title}" loading="lazy" onerror="this.src='/static/img/placeholder.png'">
+                            <span class="video-type">${item.type === 'tv' ? '剧' : '影'}</span>
+                        </div>
+                        <div class="video-info">
+                            <h3 class="video-title">${item.title}</h3>
+                            <div class="video-meta">
+                                <span>${item.site_name || ''}</span>
+                                ${item.year ? `<span>${item.year}</span>` : ''}
                             </div>
-                            <div class="video-info">
-                                <h3 class="video-title">${item.title}</h3>
-                                <div class="video-meta">
-                                    <span>${item.site_name || ''}</span>
-                                    ${item.year ? `<span>${item.year}</span>` : ''}
-                                </div>
-                            </div>
-                        </a>
-                    `).join('')}
-                </div>
-            `;
+                        </div>
+                    </a>
+                `;
+            });
+            html += '</div>';
+
+            resultsContainer.innerHTML = html;
+
+            // 渲染分页
+            if (totalPages > 1) {
+                renderPagination(totalPages);
+            }
         }
 
-        // 搜索框获得焦点
-        searchInput.focus();
+        function renderPagination(totalPages) {
+            paginationContainer.style.display = 'flex';
+            
+            let html = '';
+            
+            // 上一页
+            html += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">上一页</button>`;
+            
+            // 页码
+            const maxPages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+            let endPage = Math.min(totalPages, startPage + maxPages - 1);
+            
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+
+            if (startPage > 1) {
+                html += `<button onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) {
+                    html += `<span style="padding: 10px;">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span style="padding: 10px;">...</span>`;
+                }
+                html += `<button onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // 下一页
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">下一页</button>`;
+
+            paginationContainer.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > Math.ceil(allResults.length / itemsPerPage)) return;
+            currentPage = page;
+            renderResults();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // 暴露到全局
+        window.goToPage = goToPage;
     </script>
 </body>
 </html>

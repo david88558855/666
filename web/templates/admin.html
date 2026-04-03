@@ -350,6 +350,11 @@
                     <input type="checkbox" id="sourceIsAdult"> 标记为成人内容源
                 </label>
             </div>
+            <div class="form-group" id="sourceEnabledRow" style="display:none;">
+                <label>
+                    <input type="checkbox" id="sourceEnabled" checked> 启用此源
+                </label>
+            </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('sourceModal')">取消</button>
                 <button class="btn btn-primary" onclick="saveSource()">保存</button>
@@ -469,9 +474,14 @@
                 <tr>
                     <td>${s.id}</td>
                     <td>${s.name}</td>
-                    <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;">${s.api}</td>
+                    <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;" title="${s.api}">${s.api}</td>
                     <td>${s.is_adult ? '<span class="badge badge-warning">是</span>' : '<span class="badge badge-success">否</span>'}</td>
-                    <td>${s.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
+                    <td>
+                        <label class="switch">
+                            <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSource(${s.id}, this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </td>
                     <td>
                         <button class="btn btn-secondary btn-small" onclick="editSource(${s.id})">编辑</button>
                         <button class="btn btn-danger btn-small" onclick="deleteSource(${s.id})">删除</button>
@@ -546,6 +556,7 @@
             document.getElementById('sourceApi').value = '';
             document.getElementById('sourceDetail').value = '';
             document.getElementById('sourceIsAdult').checked = false;
+            document.getElementById('sourceEnabledRow').style.display = 'none';
             document.getElementById('sourceModal').classList.add('show');
         }
         
@@ -559,6 +570,8 @@
             document.getElementById('sourceApi').value = source.api;
             document.getElementById('sourceDetail').value = source.detail || '';
             document.getElementById('sourceIsAdult').checked = source.is_adult;
+            document.getElementById('sourceEnabled').checked = source.enabled;
+            document.getElementById('sourceEnabledRow').style.display = 'flex';
             document.getElementById('sourceModal').classList.add('show');
         }
         
@@ -578,12 +591,21 @@
             }
             
             try {
-                const url = id ? `/api/admin/sources/${id}` : '/api/admin/sources';
-                const method = id ? 'PUT' : 'POST';
+                let url, method, body;
+                if (id) {
+                    url = `/api/admin/sources/${id}`;
+                    method = 'PUT';
+                    data.enabled = document.getElementById('sourceEnabled').checked;
+                    body = JSON.stringify(data);
+                } else {
+                    url = '/api/admin/sources';
+                    method = 'POST';
+                    body = JSON.stringify(data);
+                }
                 const res = await fetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                    body: JSON.stringify(data)
+                    body
                 });
                 const result = await res.json();
                 if (result.code === 0) {
@@ -610,6 +632,26 @@
                 showToast('删除成功');
             } catch (e) {
                 showToast('删除失败');
+            }
+        }
+        
+        // 切换源启用状态
+        async function toggleSource(id, enabled) {
+            try {
+                const res = await fetch(`/api/admin/sources/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ enabled })
+                });
+                const result = await res.json();
+                if (result.code === 0) {
+                    showToast(enabled ? '已启用' : '已禁用');
+                    loadSources();
+                } else {
+                    showToast(result.message || '操作失败');
+                }
+            } catch (e) {
+                showToast('操作失败');
             }
         }
         

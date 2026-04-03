@@ -87,17 +87,53 @@ function initNav() {
         });
     }
 
-    // 分类导航
+    // 分类导航 - 点击分类筛选首页内容
     document.querySelectorAll('.category-item').forEach(item => {
         item.addEventListener('click', () => {
             document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             const category = item.dataset.id;
-            if (category !== 'all') {
-                showToast(`分类: ${item.textContent}`);
-            }
+            loadCategoryData(category);
         });
     });
+}
+
+// 加载分类数据
+async function loadCategoryData(category) {
+    const hotList = document.getElementById('hotList');
+    const newList = document.getElementById('newList');
+    
+    if (category === 'all') {
+        loadHomeData();
+        return;
+    }
+
+    // 显示加载状态
+    hotList.innerHTML = '<p class="loading">加载中...</p>';
+    newList.innerHTML = '';
+
+    try {
+        // 使用搜索接口按分类获取数据
+        const categoryNames = {
+            '1': '电影',
+            '2': '电视剧', 
+            '3': '综艺',
+            '4': '动漫',
+            '5': '纪录片'
+        };
+        
+        const res = await fetch(`/api/search?q=${encodeURIComponent(categoryNames[category] || category)}`);
+        const data = await res.json();
+        
+        if (data.code === 0 && data.data && data.data.length > 0) {
+            renderVideoList('hotList', data.data.slice(0, 24));
+        } else {
+            hotList.innerHTML = '<p class="no-data">暂无数据</p>';
+        }
+    } catch (err) {
+        console.error('加载分类数据失败:', err);
+        hotList.innerHTML = '<p class="no-data">加载失败</p>';
+    }
 }
 
 // 显示指定区域

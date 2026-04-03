@@ -5,6 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KatelyaTV-Go</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .pagination button.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+    </style>
 </head>
 <body>
     <div id="app">
@@ -52,43 +86,24 @@
             </div>
         </div>
 
-        <!-- 热门推荐 -->
+        <!-- 视频列表 -->
         <section class="section">
             <div class="container">
-                <h2 class="section-title">🔥 热门推荐</h2>
-                <div class="video-grid" id="hotList">
+                <h2 class="section-title" id="listTitle">🔥 热门推荐</h2>
+                <div class="video-grid" id="videoList">
                     <!-- 动态加载 -->
                 </div>
             </div>
         </section>
 
-        <!-- 最新更新 -->
-        <section class="section">
-            <div class="container">
-                <h2 class="section-title">✨ 最新更新</h2>
-                <div class="video-grid" id="newList">
-                    <!-- 动态加载 -->
-                </div>
-            </div>
-        </section>
-
-        <!-- 搜索结果 -->
-        <section class="section" id="searchResults" style="display:none;">
-            <div class="container">
-                <h2 class="section-title">搜索结果</h2>
-                <div class="video-grid" id="searchList">
-                    <!-- 动态加载 -->
-                </div>
-            </div>
-        </section>
+        <!-- 分页 -->
+        <div class="pagination" id="pagination" style="display:none;"></div>
 
         <!-- 历史记录 -->
         <section class="section" id="historySection" style="display:none;">
             <div class="container">
                 <h2 class="section-title">📜 观看历史</h2>
-                <div class="video-grid" id="historyList">
-                    <!-- 动态加载 -->
-                </div>
+                <div class="video-grid" id="historyList"></div>
             </div>
         </section>
 
@@ -96,9 +111,7 @@
         <section class="section" id="favoritesSection" style="display:none;">
             <div class="container">
                 <h2 class="section-title">⭐ 我的收藏</h2>
-                <div class="video-grid" id="favoritesList">
-                    <!-- 动态加载 -->
-                </div>
+                <div class="video-grid" id="favoritesList"></div>
             </div>
         </section>
 
@@ -110,10 +123,352 @@
         </footer>
     </div>
 
-    <!-- Toast提示 -->
     <div id="toast" class="toast"></div>
 
     <script src="/static/js/api.js"></script>
-    <script src="/static/js/app.js"></script>
+    <script>
+        const api = window.API;
+        let currentPage = 1;
+        let currentCategory = 'all';
+        let allVideos = [];
+        const itemsPerPage = 24;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
+
+        function initApp() {
+            updateAuthUI();
+            initSearch();
+            initNav();
+            loadHomeData();
+        }
+
+        // 更新登录UI
+        function updateAuthUI() {
+            const user = api.getUser();
+            const loginBtn = document.getElementById('loginBtn');
+            const adminBtn = document.getElementById('adminBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+
+            if (user) {
+                if (loginBtn) loginBtn.style.display = 'none';
+                if (logoutBtn) logoutBtn.style.display = 'block';
+                if (adminBtn && user.is_admin) adminBtn.style.display = 'block';
+                
+                logoutBtn.addEventListener('click', () => api.logout());
+            } else {
+                if (loginBtn) loginBtn.style.display = 'block';
+                if (adminBtn) adminBtn.style.display = 'none';
+                if (logoutBtn) logoutBtn.style.display = 'none';
+            }
+        }
+
+        // 初始化搜索
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+
+            if (searchBtn) {
+                searchBtn.addEventListener('click', () => {
+                    const query = searchInput?.value?.trim();
+                    if (query) {
+                        location.href = `/search?q=${encodeURIComponent(query)}`;
+                    }
+                });
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const query = searchInput.value.trim();
+                        if (query) {
+                            location.href = `/search?q=${encodeURIComponent(query)}`;
+                        }
+                    }
+                });
+            }
+        }
+
+        // 初始化导航
+        function initNav() {
+            const navHistory = document.getElementById('navHistory');
+            const navFavorites = document.getElementById('navFavorites');
+
+            if (navHistory) {
+                navHistory.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (!api.isLoggedIn()) {
+                        showToast('请先登录');
+                        setTimeout(() => location.href = '/login', 1000);
+                        return;
+                    }
+                    showSection('history');
+                });
+            }
+
+            if (navFavorites) {
+                navFavorites.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (!api.isLoggedIn()) {
+                        showToast('请先登录');
+                        setTimeout(() => location.href = '/login', 1000);
+                        return;
+                    }
+                    showSection('favorites');
+                });
+            }
+
+            // 分类导航
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    const category = item.dataset.id;
+                    loadCategoryData(category);
+                });
+            });
+        }
+
+        // 显示指定区域
+        function showSection(section) {
+            document.getElementById('historySection').style.display = 'none';
+            document.getElementById('favoritesSection').style.display = 'none';
+            document.querySelector('.section').style.display = 'block';
+            document.getElementById('pagination').style.display = 'none';
+
+            if (section === 'history') {
+                document.getElementById('historySection').style.display = 'block';
+                document.querySelector('.section').style.display = 'none';
+                loadHistory();
+            } else if (section === 'favorites') {
+                document.getElementById('favoritesSection').style.display = 'block';
+                document.querySelector('.section').style.display = 'none';
+                loadFavorites();
+            }
+        }
+
+        // 加载首页数据
+        async function loadHomeData() {
+            const container = document.getElementById('videoList');
+            container.innerHTML = '<p class="loading">加载中...</p>';
+            document.getElementById('pagination').style.display = 'none';
+
+            try {
+                const res = await fetch('/api/home');
+                const data = await res.json();
+                
+                if (data.code === 0 && data.data) {
+                    allVideos = [...(data.data.hot || []), ...(data.data.new || [])];
+                    currentPage = 1;
+                    currentCategory = 'all';
+                    document.getElementById('listTitle').textContent = '🔥 热门推荐';
+                    renderVideoList();
+                } else {
+                    container.innerHTML = '<p class="no-data">暂无数据，请先添加视频源</p>';
+                }
+            } catch (err) {
+                console.error('加载首页数据失败:', err);
+                container.innerHTML = '<p class="no-data">加载失败，请刷新重试</p>';
+            }
+        }
+
+        // 加载分类数据
+        async function loadCategoryData(category) {
+            if (category === 'all') {
+                loadHomeData();
+                return;
+            }
+
+            const container = document.getElementById('videoList');
+            container.innerHTML = '<p class="loading">加载中...</p>';
+            document.getElementById('pagination').style.display = 'none';
+
+            try {
+                const categoryNames = {
+                    '1': '电影',
+                    '2': '电视剧', 
+                    '3': '综艺',
+                    '4': '动漫',
+                    '5': '纪录片'
+                };
+                
+                document.getElementById('listTitle').textContent = `📺 ${categoryNames[category] || '分类'}`;
+                
+                const res = await fetch(`/api/search?q=${encodeURIComponent(categoryNames[category] || category)}`);
+                const data = await res.json();
+                
+                if (data.code === 0 && data.data && data.data.length > 0) {
+                    allVideos = data.data;
+                    currentPage = 1;
+                    renderVideoList();
+                } else {
+                    allVideos = [];
+                    container.innerHTML = '<p class="no-data">暂无数据</p>';
+                }
+            } catch (err) {
+                console.error('加载分类数据失败:', err);
+                container.innerHTML = '<p class="no-data">加载失败</p>';
+            }
+        }
+
+        // 渲染视频列表
+        function renderVideoList() {
+            const container = document.getElementById('videoList');
+            const total = allVideos.length;
+            const totalPages = Math.ceil(total / itemsPerPage);
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageItems = allVideos.slice(start, end);
+
+            if (pageItems.length === 0) {
+                container.innerHTML = '<p class="no-data">暂无数据</p>';
+                return;
+            }
+
+            container.innerHTML = pageItems.map(item => `
+                <a href="/play?site=${encodeURIComponent(item.site)}&id=${item.id}&title=${encodeURIComponent(item.title)}&cover=${encodeURIComponent(item.cover || '')}" class="video-card">
+                    <div class="video-cover">
+                        <img src="${item.cover || '/static/img/placeholder.png'}" alt="${item.title}" loading="lazy" onerror="this.src='/static/img/placeholder.png'">
+                        <span class="video-type">${item.type === 'tv' ? '剧' : '影'}</span>
+                    </div>
+                    <div class="video-info">
+                        <h3 class="video-title">${item.title}</h3>
+                        <div class="video-meta">
+                            <span>${item.site_name || ''}</span>
+                        </div>
+                    </div>
+                </a>
+            `).join('');
+
+            // 渲染分页
+            if (totalPages > 1) {
+                renderPagination(totalPages);
+            }
+        }
+
+        // 渲染分页
+        function renderPagination(totalPages) {
+            const container = document.getElementById('pagination');
+            container.style.display = 'flex';
+            
+            let html = '';
+            html += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">上一页</button>`;
+            
+            const maxPages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
+            let endPage = Math.min(totalPages, startPage + maxPages - 1);
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">下一页</button>`;
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(allVideos.length / itemsPerPage);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderVideoList();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 加载历史记录
+        async function loadHistory() {
+            if (!api.isLoggedIn()) return;
+            const container = document.getElementById('historyList');
+            container.innerHTML = '<p class="loading">加载中...</p>';
+
+            try {
+                const data = await api.getHistory();
+                if (data.code === 0 && data.data && data.data.length > 0) {
+                    const items = data.data.map(h => ({
+                        id: h.video_id,
+                        title: h.title,
+                        cover: h.cover,
+                        type: h.type,
+                        site: h.site,
+                        site_name: h.site_name
+                    }));
+                    renderSimpleList('historyList', items);
+                } else {
+                    container.innerHTML = '<p class="no-data">暂无观看历史</p>';
+                }
+            } catch (err) {
+                container.innerHTML = '<p class="no-data">加载失败</p>';
+            }
+        }
+
+        // 加载收藏
+        async function loadFavorites() {
+            if (!api.isLoggedIn()) return;
+            const container = document.getElementById('favoritesList');
+            container.innerHTML = '<p class="loading">加载中...</p>';
+
+            try {
+                const data = await api.getFavorites();
+                if (data.code === 0 && data.data && data.data.length > 0) {
+                    const items = data.data.map(f => ({
+                        id: f.video_id,
+                        title: f.title,
+                        cover: f.cover,
+                        type: f.type,
+                        site: f.site,
+                        site_name: f.site_name
+                    }));
+                    renderSimpleList('favoritesList', items);
+                } else {
+                    container.innerHTML = '<p class="no-data">暂无收藏</p>';
+                }
+            } catch (err) {
+                container.innerHTML = '<p class="no-data">加载失败</p>';
+            }
+        }
+
+        function renderSimpleList(containerId, items) {
+            const container = document.getElementById(containerId);
+            if (!items || items.length === 0) {
+                container.innerHTML = '<p class="no-data">暂无数据</p>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <a href="/play?site=${encodeURIComponent(item.site)}&id=${item.id}&title=${encodeURIComponent(item.title)}&cover=${encodeURIComponent(item.cover || '')}" class="video-card">
+                    <div class="video-cover">
+                        <img src="${item.cover || '/static/img/placeholder.png'}" alt="${item.title}" loading="lazy" onerror="this.src='/static/img/placeholder.png'">
+                        <span class="video-type">${item.type === 'tv' ? '剧' : '影'}</span>
+                    </div>
+                    <div class="video-info">
+                        <h3 class="video-title">${item.title}</h3>
+                        <div class="video-meta">
+                            <span>${item.site_name || ''}</span>
+                        </div>
+                    </div>
+                </a>
+            `).join('');
+        }
+
+        // Toast提示
+        function showToast(msg) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.className = 'toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // 暴露到全局
+        window.goToPage = goToPage;
+    </script>
 </body>
 </html>

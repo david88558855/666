@@ -2,7 +2,21 @@
 
 > 用 Rust 重写的内网穿透管理平台。功能对照 [SianHH/gostc-open](https://github.com/SianHH/gostc-open)。
 
-**当前阶段：架构方案评审中，暂未进入代码实施。**
+**当前进度：Phase 1-2 已完成 —— `gostc-rs-admin` 管理后端（REST API + 内嵌 Web 控制面板）可用，数据面（隧道转发）开发中。**
+
+## 快速开始
+
+从 GitHub Actions Artifacts 下载对应平台的压缩包（Linux/macOS 为 `.tar.gz`，Windows 为 `.zip`），解压后运行：
+
+```bash
+tar -xzf gostc-rs-x86_64-unknown-linux-gnu.tar.gz
+chmod +x gostc-rs-admin
+./gostc-rs-admin
+```
+
+- 首次运行会在当前目录自动生成 `config.toml`（含随机 `jwt_secret` 和随机管理员密码），并在控制台打印登录信息
+- 浏览器打开 `http://127.0.0.1:8080/` 进入 Web 控制面板（登录后请立即修改密码）
+- 默认端口 `8080`，可在 `config.toml` 的 `server.bind_addr` 中修改；也可用环境变量 `GOSTC_RS_CONFIG` 指定其他配置路径
 
 ## 项目入口
 

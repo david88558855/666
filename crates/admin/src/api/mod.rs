@@ -5,10 +5,12 @@ pub mod tunnels;
 pub mod users;
 
 use crate::extractors::AppState;
+use crate::web;
 use axum::{routing::get, Router};
 
 pub fn router(state: AppState) -> Router {
     Router::new()
+        .merge(web::router())
         .route("/healthz", get(health::healthz))
         .route("/auth/login", axum::routing::post(auth::login))
         .route("/auth/password", axum::routing::post(auth::change_password))

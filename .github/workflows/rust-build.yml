@@ -55,17 +55,26 @@ jobs:
         # Until then CI writes/updates Cargo.lock on each run.
         run: cargo build --workspace --release --target ${{ matrix.target }} --verbose
 
-      - name: Upload artifacts (linux x86_64 only)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Package binaries (unix, tar.gz keeps the exec bit)
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../../gostc-rs-${{ matrix.target }}.tar.gz \
+            gostc-rs-admin gostc-rs-tunnel-server gostc-rs-tunnel-client gostc-rs-gateway
+
+      - name: Package binaries (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path target/${{ matrix.target }}/release/gostc-rs-*.exe `
+            -DestinationPath gostc-rs-${{ matrix.target }}.zip
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gostc-rs-linux-x86_64
-          path: |
-            target/x86_64-unknown-linux-gnu/release/gostc-rs-admin
-            target/x86_64-unknown-linux-gnu/release/gostc-rs-tunnel-server
-            target/x86_64-unknown-linux-gnu/release/gostc-rs-tunnel-client
-            target/x86_64-unknown-linux-gnu/release/gostc-rs-gateway
-          if-no-files-found: warn
+          name: gostc-rs-${{ matrix.target }}
+          path: gostc-rs-${{ matrix.target }}.*
+          if-no-files-found: error
 
   clippy:
     name: Clippy

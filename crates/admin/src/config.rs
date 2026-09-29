@@ -79,6 +79,42 @@ fn default_log_level() -> String {
     "info".to_string()
 }
 
+fn random_hex(n_bytes: usize) -> String {
+    use rand::RngCore;
+    use std::fmt::Write;
+    let mut bytes = vec![0u8; n_bytes];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    let mut s = String::with_capacity(n_bytes * 2);
+    for b in bytes {
+        let _ = write!(&mut s, "{b:02x}");
+    }
+    s
+}
+
+const DEFAULT_CONFIG_TEMPLATE: &str = r#"# gostc-rs-admin configuration
+# Auto-generated on first start. Edit and restart to apply.
+
+[server]
+bind_addr = "0.0.0.0:8080"
+data_dir = "./data"
+
+[auth]
+# At least 32 characters.
+jwt_secret = "{JWT_SECRET}"
+access_token_ttl_secs = 3600
+
+[database]
+url = "sqlite://./data/gostc-rs.db?mode=rwc"
+
+[bootstrap]
+# Applied only when the users table is empty (first run).
+admin_username = "admin"
+admin_password = "{ADMIN_PASSWORD}"
+
+[logging]
+level = "info"
+"#;
+
 impl AppConfig {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
         let raw = std::fs::read_to_string(path)
@@ -95,5 +131,29 @@ impl AppConfig {
             );
         }
         Ok(cfg)
+    }
+
+    /// Load the config from `path`. If the file does not exist, a default
+    /// config with random `jwt_secret` and random admin password is generated
+    /// and written to `path`, so the binary works out of the box.
+    /// Returns the config plus a flag telling whether it was just created.
+    pub fn load_or_create(path: &Path) -> anyhow::Result<(Self, bool)> {
+        if path.exists() {
+            return Ok((Self::load(path)?, false));
+        }
+        let raw = DEFAULT_CONFIG_TEMPLATE
+            .replace("{JWT_SECRET}", &random_hex(32))
+            .replace("{ADMIN_PASSWORD}", &random_hex(12));
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("create dir {}", parent.display()))?;
+            }
+        }
+        std::fs::write(path, &raw)
+            .with_context(|| format!("write generated config {}", path.display()))?;
+        let cfg: AppConfig = toml::from_str(&raw)
+            .with_context(|| format!("parse generated config {}", path.display()))?;
+        Ok((cfg, true))
     }
 }

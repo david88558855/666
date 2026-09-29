@@ -5,6 +5,7 @@ mod db;
 mod error;
 mod extractors;
 mod models;
+mod web;
 
 use anyhow::Context;
 use config::AppConfig;
@@ -21,8 +22,11 @@ async fn main() -> anyhow::Result<()> {
     let config_path = std::env::var("GOSTC_RS_CONFIG")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("config.toml"));
-    let config = AppConfig::load(&config_path)
+    let (config, config_created) = AppConfig::load_or_create(&config_path)
         .with_context(|| format!("loading config from {}", config_path.display()))?;
+    if config_created {
+        tracing::info!(path = %config_path.display(), "no config file found, generated a default one");
+    }
 
     tracing::info!(
         bind_addr = %config.server.bind_addr,
@@ -47,6 +51,25 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(&config.server.bind_addr)
         .await
         .with_context(|| format!("bind {}", config.server.bind_addr))?;
+    let port = config
+        .server
+        .bind_addr
+        .rsplit(':')
+        .next()
+        .unwrap_or("8080")
+        .to_string();
+    if config_created {
+        println!("============================================================");
+        println!("  gostc-rs 管理服务已启动（首次运行，已自动生成配置文件）");
+        println!("    配置文件    : {}", config_path.display());
+        println!("    Web控制面板 : http://127.0.0.1:{port}/");
+        println!("    管理员账号  : {}", config.bootstrap.admin_username);
+        println!("    管理员密码  : {}", config.bootstrap.admin_password);
+        println!("    ↑ 密码已写入配置文件，登录面板后请立即修改");
+        println!("============================================================");
+    } else {
+        println!("gostc-rs admin 已启动: Web控制面板 http://127.0.0.1:{port}/");
+    }
     tracing::info!("listening on {}", config.server.bind_addr);
     axum::serve(listener, app).await?;
     Ok(())

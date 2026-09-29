@@ -24,7 +24,7 @@ pub async fn list(
     State(state): State<AppState>,
     _admin: AdminUser,
 ) -> AppResult<Json<Vec<NodeRow>>> {
-    let rows: Vec<NodeRow> = sqlx::query_as("SELECT * FROM nodes ORDER BY id")
+    let rows: Vec<NodeRow> = sqlx::query_as::<_, NodeRow>("SELECT * FROM nodes ORDER BY id")
         .fetch_all(&state.db.pool)
         .await?;
     Ok(Json(rows))
@@ -35,7 +35,7 @@ pub async fn get(
     _admin: AdminUser,
     Path(id): Path<i64>,
 ) -> AppResult<Json<NodeRow>> {
-    let row: Option<NodeRow> = sqlx::query_as("SELECT * FROM nodes WHERE id = ?")
+    let row: Option<NodeRow> = sqlx::query_as::<_, NodeRow>("SELECT * FROM nodes WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.db.pool)
         .await?;

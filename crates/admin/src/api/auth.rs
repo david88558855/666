@@ -13,7 +13,7 @@ pub async fn login(
         return Err(AppError::Validation("username and password are empty".into()));
     }
     let row: Option<UserRow> =
-        sqlx::query_as("SELECT * FROM users WHERE username = ?")
+        sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE username = ?")
             .bind(&req.username)
             .fetch_optional(&state.db.pool)
             .await?;
@@ -52,7 +52,7 @@ pub async fn change_password(
             "new_password must be at least 8 characters".into(),
         ));
     }
-    let row: UserRow = sqlx::query_as("SELECT * FROM users WHERE id = ?")
+    let row: UserRow = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE id = ?")
         .bind(user.id)
         .fetch_one(&state.db.pool)
         .await?;

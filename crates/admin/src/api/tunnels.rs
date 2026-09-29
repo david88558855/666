@@ -45,11 +45,11 @@ pub async fn list(
     user: AuthUser,
 ) -> AppResult<Json<Vec<TunnelRow>>> {
     let rows: Vec<TunnelRow> = if user.role == Role::Admin {
-        sqlx::query_as("SELECT * FROM tunnels ORDER BY id")
+        sqlx::query_as::<_, TunnelRow>("SELECT * FROM tunnels ORDER BY id")
             .fetch_all(&state.db.pool)
             .await?
     } else {
-        sqlx::query_as("SELECT * FROM tunnels WHERE user_id = ? ORDER BY id")
+        sqlx::query_as::<_, TunnelRow>("SELECT * FROM tunnels WHERE user_id = ? ORDER BY id")
             .bind(user.id)
             .fetch_all(&state.db.pool)
             .await?
@@ -62,7 +62,7 @@ pub async fn get(
     user: AuthUser,
     Path(id): Path<i64>,
 ) -> AppResult<Json<TunnelRow>> {
-    let row: Option<TunnelRow> = sqlx::query_as("SELECT * FROM tunnels WHERE id = ?")
+    let row: Option<TunnelRow> = sqlx::query_as::<_, TunnelRow>("SELECT * FROM tunnels WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.db.pool)
         .await?;
@@ -154,7 +154,7 @@ pub async fn update(
     Path(id): Path<i64>,
     Json(req): Json<UpdateTunnelRequest>,
 ) -> AppResult<Json<serde_json::Value>> {
-    let row: TunnelRow = sqlx::query_as("SELECT * FROM tunnels WHERE id = ?")
+    let row: TunnelRow = sqlx::query_as::<_, TunnelRow>("SELECT * FROM tunnels WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.db.pool)
         .await?
@@ -207,7 +207,7 @@ pub async fn delete(
     user: AuthUser,
     Path(id): Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
-    let row: Option<TunnelRow> = sqlx::query_as("SELECT * FROM tunnels WHERE id = ?")
+    let row: Option<TunnelRow> = sqlx::query_as::<_, TunnelRow>("SELECT * FROM tunnels WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.db.pool)
         .await?;

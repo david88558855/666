@@ -12,7 +12,7 @@ pub async fn list(
     State(state): State<AppState>,
     _admin: AdminUser,
 ) -> AppResult<Json<Vec<UserRow>>> {
-    let rows: Vec<UserRow> = sqlx::query_as("SELECT * FROM users ORDER BY id")
+    let rows: Vec<UserRow> = sqlx::query_as::<_, UserRow>("SELECT * FROM users ORDER BY id")
         .fetch_all(&state.db.pool)
         .await?;
     Ok(Json(rows))
@@ -26,7 +26,7 @@ pub async fn get(
     if user.id != id && user.role != Role::Admin {
         return Err(AppError::Forbidden);
     }
-    let row: Option<UserRow> = sqlx::query_as("SELECT * FROM users WHERE id = ?")
+    let row: Option<UserRow> = sqlx::query_as::<_, UserRow>("SELECT * FROM users WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.db.pool)
         .await?;

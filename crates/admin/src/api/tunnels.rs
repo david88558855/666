@@ -38,8 +38,9 @@ fn validate_tunnel(r#type: &TunnelType, remote_port: &Option<i64>, domain: &Opti
             }
         }
         // Secret tunnels have no public port/domain; access control is the
-        // secret key (sk), hashed server-side.
-        TunnelType::Stcp | TunnelType::Sudp => {}
+        // secret key (sk), hashed server-side. p2p tunnels use the same
+        // vKey model (gostc-style) with direct-connection-first data plane.
+        TunnelType::Stcp | TunnelType::Sudp | TunnelType::P2p => {}
     }
     Ok(())
 }
@@ -147,15 +148,16 @@ pub async fn create(
     let token = random_token();
     // Secret key handling for stcp/sudp: required at creation, hashed with
     // the same salted KDF as user passwords (auth.rs), never stored plain.
-    let sk_hash = matches!(r#type, TunnelType::Stcp | TunnelType::Sudp).then(|| {
-        if req.sk.len() < 6 {
-            return Err(AppError::Validation(
-                "sk (secret key) of at least 6 characters is required for stcp/sudp tunnels"
-                    .into(),
-            ));
-        }
-        hash_password(&req.sk)
-    });
+    let sk_hash = matches!(r#type, TunnelType::Stcp | TunnelType::Sudp | TunnelType::P2p)
+        .then(|| {
+            if req.sk.len() < 6 {
+                return Err(AppError::Validation(
+                    "sk (secret key/vKey) of at least 6 characters is required for stcp/sudp/p2p tunnels"
+                        .into(),
+                ));
+            }
+            hash_password(&req.sk)
+        });
     let sk_hash = match sk_hash {
         Some(h) => Some(h?),
         None => None,

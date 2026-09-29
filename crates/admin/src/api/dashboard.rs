@@ -40,10 +40,11 @@ pub async fn count(
         .count() as i64;
 
     // Tunnel counts by presentation page: tcp -> 私有隧道, udp -> 端口转发,
-    // http/https -> 域名解析. proxy/p2p have no data plane yet.
+    // http/https -> 域名解析, p2p -> P2P隧道. proxy has no data plane yet.
     let mut host = 0i64;
     let mut forward = 0i64;
     let mut tunnel = 0i64;
+    let mut p2p = 0i64;
     let rows: Vec<(String, i64)> =
         sqlx::query_as("SELECT type, COUNT(*) FROM tunnels GROUP BY type")
             .fetch_all(pool)
@@ -53,6 +54,7 @@ pub async fn count(
             "http" | "https" => host += n,
             "udp" => forward += n,
             "tcp" => tunnel += n,
+            "p2p" => p2p += n,
             _ => {}
         }
     }
@@ -116,7 +118,7 @@ pub async fn count(
             "forward": forward,
             "tunnel": tunnel,
             "proxy": 0,
-            "p2p": 0,
+            "p2p": p2p,
             "inputBytes": today_in,
             "outputBytes": today_out,
         },

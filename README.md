@@ -4,6 +4,8 @@
 
 **当前进度：Phase 1-3 已完成 —— 管理后端 + 内嵌 Web 控制面板 + TCP 隧道数据面（gostc 式连接模型）可用。**
 
+面板已对齐 gostc-open 版块：全站统计 / 系统配置 / 通知公告 / 用户管理 / 节点管理 / 客户端 / 域名解析 / 端口转发 / 私有隧道 / 秘密隧道（STCP/SUDP，自研）/ P2P 隧道（vKey + 访客，自研，原理参考 [EasyTier](https://github.com/EasyTier/EasyTier)）/ 关于。管理面全部就位；UDP/HTTP/HTTPS/P2P 的数据面转发随 orbien 底层接入（Phase 3/4）逐步生效。
+
 ## 快速开始
 
 从 GitHub Actions Artifacts 下载对应平台的压缩包（Linux/macOS 为 `.tar.gz`，Windows 为 `.zip`），解压后运行：

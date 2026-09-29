@@ -7,10 +7,11 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::json;
 
-/// Visitor management for secret tunnels (stcp/sudp). A visitor binds a
-/// visitor-side client and a local listen port to one secret tunnel; the
-/// visitor client then opens that local port and forwards into the service
-/// via P2P direct or node relay fallback (ARCHITECTURE.md 7.8/7.9).
+/// Visitor management for secret tunnels (stcp/sudp) and gostc-style P2P
+/// tunnels. A visitor binds a visitor-side client and a local listen port to
+/// one tunnel; the visitor client then opens that local port and forwards
+/// into the service via P2P direct or node relay fallback
+/// (ARCHITECTURE.md 7.8/7.9).
 
 async fn owned_tunnel(
     state: &AppState,
@@ -57,9 +58,9 @@ pub async fn create(
     Json(req): Json<CreateVisitorRequest>,
 ) -> AppResult<Json<serde_json::Value>> {
     let tunnel = owned_tunnel(&state, &user, id).await?;
-    if !matches!(tunnel.r#type.as_str(), "stcp" | "sudp") {
+    if !matches!(tunnel.r#type.as_str(), "stcp" | "sudp" | "p2p") {
         return Err(AppError::Validation(
-            "visitors can only be attached to stcp/sudp tunnels".into(),
+            "visitors can only be attached to stcp/sudp/p2p tunnels".into(),
         ));
     }
     if !(1..=65535).contains(&req.local_listen) {

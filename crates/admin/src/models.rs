@@ -48,6 +48,11 @@ pub enum TunnelType {
     Stcp,
     /// Secret UDP (frp-style SUDP, same visitor model as STCP).
     Sudp,
+    /// gostc-style P2P tunnel (frp xtcp semantics, self-built): service
+    /// client registers node + intranet target + vKey (sk_hash); visitors
+    /// connect via NAT traversal with node relay fallback. Direct-connection
+    /// first, never occupies a public port.
+    P2p,
 }
 
 impl TunnelType {
@@ -59,6 +64,7 @@ impl TunnelType {
             TunnelType::Https => "https",
             TunnelType::Stcp => "stcp",
             TunnelType::Sudp => "sudp",
+            TunnelType::P2p => "p2p",
         }
     }
 }
@@ -73,6 +79,7 @@ impl FromStr for TunnelType {
             "https" => Ok(Self::Https),
             "stcp" => Ok(Self::Stcp),
             "sudp" => Ok(Self::Sudp),
+            "p2p" => Ok(Self::P2p),
             other => Err(format!("unknown tunnel type: {other}")),
         }
     }

@@ -238,7 +238,8 @@ orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同�
 | 隧道：UDP / HTTP / HTTPS 转发 | ❌ 仅可建 | Phase 3/4（orbien tunnel 类型） |
 | 隧道：带宽限制 / Basic Auth / 自定义 Header | ❌ | Phase 4 |
 | 端口转发（forward） / 域名解析（host） | ❌ | Phase 4 |
-| SOCKS5 / P2P 隧道 | ❌ | Phase 4+（SOCKS5 走 orbien client plugin；P2P 按自研方案 §7.8） |
+| SOCKS5 代理隧道 | ❌ | Phase 4+（orbien client plugin） |
+| P2P 隧道（vKey + 访客，使用方式对齐 gostc） | ✅ 管理面 | 数据面 Phase 3/4（§7.8，原理参考 EasyTier） |
 | 秘密隧道 STCP/SUDP（双方客户端 + sk + visitor） | ✅ 管理面 | 数据面 Phase 4（§7.9，自研） |
 | 用户：流量配额 / 带宽限制生效 | ❌ 表结构已有 | Phase 4 |
 | 流量统计 / 报表 | ❌ | Phase 4（metrics 对齐 orbien counter 栈） |
@@ -247,25 +248,44 @@ orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同�
 | 操作审计日志 | ❌ 表结构已有 | Phase 4+ |
 | ACME 证书自动申请 | ❌ | Phase 4（orbien 内建） |
 
-### 7.8 P2P 隧道自研方案（orbien 无此能力）
+### 7.8 P2P 隧道自研方案（使用方式对齐 gostc，实现原理参考 EasyTier）
 
-**结论（2026-09-29 源码核查）**：orbien 不具备 P2P 能力——`server/src/tunnel/` 仅有
-`TcpTunnel / HttpTunnel / HttpsTunnel / UdpTunnel` 四种隧道，无 STUN 探测、无 UDP
-打洞、无访问方-被访方直连协调代码。gostc-open 的 P2P 隧道（对应 frp 的 xtcp 思路）
-需 gostc-rs 自研，规划如下：
+**核查结论（2026-09-29）**：orbien 无 P2P 能力（隧道类型仅 Tcp/Http/Https/Udp，
+无 STUN/打洞/直连协调代码）；gostc-open 的 P2P 隧道是「服务方客户端注册节点+内网目标，
+访问方凭 vKey 在自己的客户端开访客入口」的使用模型（frp xtcp 语义），其数据面同样
+不在开源范围。gostc-rs 自研：**使用方式对齐 gostc，实现原理参考 EasyTier**
+（github.com/EasyTier/EasyTier）。
 
-1. **协调面（admin server 扩展）**：新增打洞协调 API——被访方 client 登记待访问的
-   P2P 隧道；访问方请求连接时，server 交换双方的公网映射地址（host:port）与 NAT 探测
-   结果，作为 Rendezvous 角色（对齐 frp xtcp 的 visitor ↔ server ↔ xtcp 工作模型）。
-2. **NAT 探测**：client 内嵌轻量 STUN 客户端（RFC 8489，公网 STUN 服务器可配置），
-   探测 NAT 类型；Full-cone / Restricted-cone 可打洞，Symmetric 直接走中继回退。
-3. **数据面**：双方 client 在协调下互发 UDP 探测包完成打洞，成功后在其上跑 yamux +
-   orbien 消息帧协议（复用 §7.2/§7.3），P2P 隧道流量不过节点。
-4. **中继回退**：打洞失败自动降级为现有节点转发路径（TCP 私有隧道同款），面板上标记
-   「中继模式」，保证可用性优先。
-5. **面板**：P2P 隧道页 UI 已就位（复用隧道卡片骨架），Phase 4+ 接数据面。
+**EasyTier 原理参考要点**：
 
-排期：Phase 4+（先完成 orbien 底层接入与 UDP/HTTP/HTTPS 数据面，再落 P2P）。
+- NAT 类型探测基于 **STUN**（CLI 暴露 nat_type 列，如 FullCone），辅以路由器
+  端口映射（UPnP/NAT-PMP 类）
+- **UDP 打洞**支持 NAT4-NAT4 多层嵌套与 IPv6；打洞成功后节点直连（cost=p2p）
+- 打洞失败自动经**共享节点中继**，按延迟优先自动选路（直连/中继自动切换）
+- 高丢包环境用 KCP/QUIC 代理优化；组网密钥鉴权 + AES-GCM/WireGuard 加密
+
+**gostc-rs 方案**：
+
+1. **使用方式（对齐 gostc，管理面已落地）**：
+   - 服务方：创建 P2P 隧道（`tunnels.type='p2p'`：节点 + 内网目标 + vKey）
+   - 访问方：凭 vKey 在自己的客户端开访客入口（`tunnel_visitors`：本地监听端口）
+   - 双方客户端都只连中央控制台（复用现有连接模型），30s 心跳内自动下发生效
+   - 面板：「P2P隧道」页（创建/卡片/访客管理 Modal），不占节点公网端口
+2. **协调面**：控制台充当 Rendezvous——按隧道/访客配置交换双方公网映射地址
+   与 NAT 类型结果
+3. **NAT 穿透（参考 EasyTier）**：STUN 探测（RFC 8489，公网 STUN 服务器可配置）
+   分类 NAT——Full/Restricted-cone 可打洞，Symmetric 直接走中继；UDP 打洞由双方
+   client 在协调下互发探测包；辅以 UPnP/NAT-PMP 端口映射；双方均有公网 IPv6 时
+   优先 v6 直连（跳过打洞）
+4. **数据面**：直连成功后跑 yamux + orbien 消息帧（§7.2/§7.3）；失败回退节点
+   中继（服务方隧道所选节点）；面板标记连接模式（直连/中继），延迟优先自动选路
+5. **安全**：vKey 与用户密码同一套加盐 KDF 哈希存储；访客连接时 verify 校验；
+   数据面加密沿用 orbien 传输层（rustls）
+
+**实现状态**：管理面 ✅（p2p 类型 + 访客 API + 面板页，本轮）；数据面 Phase 3/4
+——先落地 STUN 探测与中继路径（随 orbien 接入即可用），再攻打洞直连。
+
+排期：与 §7.9 秘密隧道共用访客与协调设施；数据面随 Phase 3/4 接入。
 
 ### 7.9 秘密隧道（STCP/SUDP）自研方案（对齐 frp，orbien/gostc-open 均无此能力）
 
@@ -383,6 +403,8 @@ Apache-2.0。`NOTICE` 声明：gostc-open（管理面设计参照）、orbien-or
 ---
 
 ## 12. 版本记录
+
+- **v0.7 — 2026-09-29**：P2P 隧道管理面落地（使用方式对齐 gostc）——迁移 007 新增 p2p 隧道类型（vKey 复用 sk_hash、访客复用 tunnel_visitors）；面板 P2P 页改为 gostc 式可创建（服务方节点+内网目标+vKey，访客管理）；dashboard 统计真实 p2p 数；§7.8 重写：实现原理参考 EasyTier（STUN NAT 探测 + UDP 打洞 NAT4-NAT4 + UPnP/NAT-PMP + 中继回退 + 延迟优先选路），数据面排期 Phase 3/4
 
 - **v0.6 — 2026-09-29**：自研秘密隧道 STCP/SUDP（核查确认 gostc-open 与 orbien 均无 frp visitor 模型，§7.9）——管理面落地：tunnels 类型扩展（stcp/sudp + sk_hash 加盐哈希）、tunnel_visitors 访客表与 API（GET/POST/DELETE）、面板新增「秘密隧道」页（sk 创建 + 访客管理 Modal，无公网端口暴露）；数据面路径复用 §7.8 P2P 直连 + 节点中继回退，随 Phase 4 接入
 - **v0.5 — 2026-09-29**：控制台对齐 gostc-open——面板重写为 12 项完整菜单（全站统计/系统配置/通知公告/用户管理/节点管理/客户端/域名解析/端口转发/私有隧道/代理隧道/P2P隧道/关于），节点与客户端改 gostc 式卡片网格（域名解析/端口转发/P2P 功能开关与 tabs、连接协议含 WSS 五选项）、五类隧道页共用卡片骨架（状态开关/更多操作/访问密钥）、用户表格页加编辑、全站统计 10 卡 + 流量排行卡；后端补 dashboard 聚合 / notices / settings API 与 nodes 扩展列；§7.8 落档 P2P 自研方案（核查确认 orbien 无 P2P/STUN 能力，需自研：STUN 打洞 + 中继回退）

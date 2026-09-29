@@ -73,7 +73,7 @@ fn default_admin_username() -> String {
     "admin".to_string()
 }
 fn default_admin_password() -> String {
-    "changeme".to_string()
+    "admin".to_string()
 }
 fn default_log_level() -> String {
     "info".to_string()
@@ -109,7 +109,7 @@ url = "sqlite://./data/gostc-rs.db?mode=rwc"
 [bootstrap]
 # Applied only when the users table is empty (first run).
 admin_username = "admin"
-admin_password = "{ADMIN_PASSWORD}"
+admin_password = "admin"
 
 [logging]
 level = "info"
@@ -134,16 +134,14 @@ impl AppConfig {
     }
 
     /// Load the config from `path`. If the file does not exist, a default
-    /// config with random `jwt_secret` and random admin password is generated
-    /// and written to `path`, so the binary works out of the box.
+    /// config with a random `jwt_secret` is generated and written to `path`,
+    /// so the binary works out of the box (default login: admin / admin).
     /// Returns the config plus a flag telling whether it was just created.
     pub fn load_or_create(path: &Path) -> anyhow::Result<(Self, bool)> {
         if path.exists() {
             return Ok((Self::load(path)?, false));
         }
-        let raw = DEFAULT_CONFIG_TEMPLATE
-            .replace("{JWT_SECRET}", &random_hex(32))
-            .replace("{ADMIN_PASSWORD}", &random_hex(12));
+        let raw = DEFAULT_CONFIG_TEMPLATE.replace("{JWT_SECRET}", &random_hex(32));
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 std::fs::create_dir_all(parent)

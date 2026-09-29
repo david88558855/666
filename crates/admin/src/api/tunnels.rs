@@ -1,4 +1,4 @@
-use crate::db::{ClientRow, TunnelRow};
+use crate::db::{ClientRow, NodeRow, TunnelRow};
 use crate::error::{AppError, AppResult};
 use crate::extractors::{AdminUser, AppState, AuthUser};
 use crate::models::{Role, TunnelStatus, TunnelType};
@@ -76,6 +76,7 @@ pub async fn get(
 #[derive(Deserialize)]
 pub struct CreateTunnelRequest {
     pub client_id: i64,
+    pub node_id: i64,
     pub name: String,
     pub r#type: String,
     pub local_addr: String,
@@ -106,6 +107,13 @@ pub async fn create(
     if user.role != Role::Admin && client.user_id != user.id {
         return Err(AppError::Forbidden);
     }
+    let node: Option<NodeRow> = sqlx::query_as::<_, NodeRow>("SELECT * FROM nodes WHERE id = ?")
+        .bind(req.node_id)
+        .fetch_optional(&state.db.pool)
+        .await?;
+    let Some(node) = node else {
+        return Err(AppError::NotFound(format!("node {}", req.node_id)));
+    };
     let r#type = TunnelType::from_str(&req.r#type)
         .map_err(|e| AppError::Validation(e))?;
     let status = match req.status.as_deref() {
@@ -132,10 +140,11 @@ pub async fn create(
     let token = random_token();
     let result = sqlx::query(
         "INSERT INTO tunnels
-           (user_id, client_id, name, type, local_addr, remote_port, domain, token, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+           (user_id, node_id, client_id, name, type, local_addr, remote_port, domain, token, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(client.user_id)
+    .bind(node.id)
     .bind(client.id)
     .bind(&req.name)
     .bind(r#type.as_str())
@@ -146,12 +155,13 @@ pub async fn create(
     .bind(status.as_str())
     .execute(&state.db.pool)
     .await
-    .map_err(|e| AppError::Db(e))?;
+    .map_err(AppError::Db)?;
     Ok(Json(json!({
         "id": result.last_insert_rowid(),
         "name": req.name,
         "type": r#type,
         "client_id": client.id,
+        "node_id": node.id,
     })))
 }
 

@@ -26,6 +26,7 @@ pub fn router(state: AppState) -> Router {
         .route("/nodes/register", axum::routing::post(nodes::register))
         .route("/nodes/:id/secret", get(nodes::secret))
         .route("/clients", get(clients::list).post(clients::create))
+        .route("/clients/connect", axum::routing::post(clients::connect))
         .route("/clients/:id", axum::routing::delete(clients::delete))
         .route(
             "/nodes/:id",

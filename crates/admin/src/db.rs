@@ -125,7 +125,10 @@ pub struct TunnelRow {
 pub struct ClientRow {
     pub id: i64,
     pub user_id: i64,
-    pub node_id: i64,
+    /// Kept for schema compatibility; clients are no longer bound to a node
+    /// at creation time (the binding lives on tunnels now).
+    #[allow(dead_code)]
+    pub node_id: Option<i64>,
     pub name: String,
     pub token: String,
     pub status: String,

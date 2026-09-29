@@ -64,8 +64,8 @@ async fn main() -> anyhow::Result<()> {
         println!("    配置文件    : {}", config_path.display());
         println!("    Web控制面板 : http://127.0.0.1:{port}/");
         println!("    管理员账号  : {}", config.bootstrap.admin_username);
-        println!("    管理员密码  : {}", config.bootstrap.admin_password);
-        println!("    ↑ 密码已写入配置文件，登录面板后请立即修改");
+        println!("    管理员密码  : {}（默认密码，登录后请立即修改）",
+                 config.bootstrap.admin_password);
         println!("============================================================");
     } else {
         println!("gostc-rs admin 已启动: Web控制面板 http://127.0.0.1:{port}/");

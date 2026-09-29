@@ -1,4 +1,4 @@
-use crate::db::{ClientRow, NodeRow};
+use crate::db::NodeRow;
 use crate::error::{AppError, AppResult};
 use crate::extractors::AdminUser;
 use crate::extractors::AppState;
@@ -148,15 +148,19 @@ pub async fn delete(
     Ok(Json(json!({ "ok": true })))
 }
 
-/// Tunnel subset returned to a registering tunnel-server node.
-#[derive(serde::Serialize, sqlx::FromRow)]
-pub struct NodeTunnel {
-    pub id: i64,
-    pub name: String,
-    pub r#type: String,
-    pub local_addr: String,
-    pub remote_port: Option<i64>,
-    pub status: String,
+/// Joined row: a tunnel on this node together with its owning client.
+#[derive(sqlx::FromRow)]
+pub struct JoinedTunnel {
+    c_id: i64,
+    c_name: String,
+    c_token: String,
+    c_status: String,
+    t_id: i64,
+    t_name: String,
+    t_type: String,
+    t_local_addr: String,
+    t_remote_port: Option<i64>,
+    t_status: String,
 }
 
 #[derive(Deserialize)]
@@ -165,8 +169,9 @@ pub struct RegisterNodeRequest {
 }
 
 /// Node self-registration / heartbeat. Authenticated by node secret.
-/// Returns the node identity plus its clients and tunnel assignments so the
-/// tunnel-server can open public listeners and validate tunnel-clients.
+/// Returns the node identity plus the clients and tunnel assignments bound
+/// to this node, so the tunnel-server can open public listeners and
+/// validate tunnel-clients.
 pub async fn register(
     State(state): State<AppState>,
     Json(req): Json<RegisterNodeRequest>,
@@ -191,36 +196,50 @@ pub async fn register(
         .execute(&state.db.pool)
         .await?;
 
-    let clients: Vec<ClientRow> = sqlx::query_as::<_, ClientRow>(
-        "SELECT * FROM clients WHERE node_id = ? ORDER BY id",
+    let rows: Vec<JoinedTunnel> = sqlx::query_as::<_, JoinedTunnel>(
+        "SELECT c.id AS c_id, c.name AS c_name, c.token AS c_token, c.status AS c_status,
+                t.id AS t_id, t.name AS t_name, t.type AS t_type,
+                t.local_addr AS t_local_addr, t.remote_port AS t_remote_port,
+                t.status AS t_status
+         FROM tunnels t
+         JOIN clients c ON t.client_id = c.id
+         WHERE t.node_id = ?
+         ORDER BY c.id, t.id",
     )
     .bind(node.id)
     .fetch_all(&state.db.pool)
     .await?;
 
-    let mut client_entries = Vec::with_capacity(clients.len());
-    for c in clients {
-        let tunnels: Vec<NodeTunnel> = sqlx::query_as::<_, NodeTunnel>(
-            "SELECT id, name, type, local_addr, remote_port, status
-             FROM tunnels WHERE client_id = ? ORDER BY id",
-        )
-        .bind(c.id)
-        .fetch_all(&state.db.pool)
-        .await?;
-        client_entries.push(json!({
-            "id": c.id,
-            "name": c.name,
-            "token": c.token,
-            "status": c.status,
-            "tunnels": tunnels,
-        }));
+    // Group tunnels by client token.
+    let mut grouped: std::collections::BTreeMap<i64, serde_json::Value> =
+        std::collections::BTreeMap::new();
+    for r in rows {
+        let entry = grouped.entry(r.c_id).or_insert_with(|| {
+            json!({
+                "id": r.c_id,
+                "name": r.c_name,
+                "token": r.c_token,
+                "status": r.c_status,
+                "tunnels": Vec::<serde_json::Value>::new(),
+            })
+        });
+        if let Some(tunnels) = entry.get_mut("tunnels").and_then(|t| t.as_array_mut()) {
+            tunnels.push(json!({
+                "id": r.t_id,
+                "name": r.t_name,
+                "type": r.t_type,
+                "local_addr": r.t_local_addr,
+                "remote_port": r.t_remote_port,
+                "status": r.t_status,
+            }));
+        }
     }
 
     Ok(Json(json!({
         "node_id": node.id,
         "name": node.name,
         "tunnel_endpoint": node.tunnel_endpoint,
-        "clients": client_entries,
+        "clients": grouped.into_values().collect::<Vec<_>>(),
     })))
 }
 

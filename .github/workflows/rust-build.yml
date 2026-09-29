@@ -60,7 +60,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           tar -czf ../../../gostc-rs-${{ matrix.target }}.tar.gz \
-            gostc-rs-admin gostc-rs-tunnel-server gostc-rs-tunnel-client gostc-rs-gateway
+            gostc-rs-admin gostc-rs-tunnel-server gostc-rs-tunnel-client
 
       - name: Package binaries (windows)
         if: runner.os == 'Windows'

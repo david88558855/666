@@ -1,4 +1,4 @@
-use crate::db::NodeRow;
+use crate::db::{ClientRow, NodeRow};
 use crate::error::{AppError, AppResult};
 use crate::extractors::AdminUser;
 use crate::extractors::AppState;
@@ -146,4 +146,94 @@ pub async fn delete(
         return Err(AppError::NotFound(format!("node {id}")));
     }
     Ok(Json(json!({ "ok": true })))
+}
+
+/// Tunnel subset returned to a registering tunnel-server node.
+#[derive(serde::Serialize, sqlx::FromRow)]
+pub struct NodeTunnel {
+    pub id: i64,
+    pub name: String,
+    pub r#type: String,
+    pub local_addr: String,
+    pub remote_port: Option<i64>,
+    pub status: String,
+}
+
+#[derive(Deserialize)]
+pub struct RegisterNodeRequest {
+    pub secret: String,
+}
+
+/// Node self-registration / heartbeat. Authenticated by node secret.
+/// Returns the node identity plus its clients and tunnel assignments so the
+/// tunnel-server can open public listeners and validate tunnel-clients.
+pub async fn register(
+    State(state): State<AppState>,
+    Json(req): Json<RegisterNodeRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    if req.secret.is_empty() {
+        return Err(AppError::Validation("secret is empty".into()));
+    }
+    let row: Option<NodeRow> =
+        sqlx::query_as::<_, NodeRow>("SELECT * FROM nodes WHERE secret = ?")
+            .bind(&req.secret)
+            .fetch_optional(&state.db.pool)
+            .await?;
+    let Some(node) = row else {
+        return Err(AppError::Unauthorized);
+    };
+    if node.status == "disabled" {
+        return Err(AppError::Forbidden);
+    }
+    sqlx::query("UPDATE nodes SET status = 'online', last_heartbeat = ? WHERE id = ?")
+        .bind(chrono::Utc::now())
+        .bind(node.id)
+        .execute(&state.db.pool)
+        .await?;
+
+    let clients: Vec<ClientRow> = sqlx::query_as::<_, ClientRow>(
+        "SELECT * FROM clients WHERE node_id = ? ORDER BY id",
+    )
+    .bind(node.id)
+    .fetch_all(&state.db.pool)
+    .await?;
+
+    let mut client_entries = Vec::with_capacity(clients.len());
+    for c in clients {
+        let tunnels: Vec<NodeTunnel> = sqlx::query_as::<_, NodeTunnel>(
+            "SELECT id, name, type, local_addr, remote_port, status
+             FROM tunnels WHERE client_id = ? ORDER BY id",
+        )
+        .bind(c.id)
+        .fetch_all(&state.db.pool)
+        .await?;
+        client_entries.push(json!({
+            "id": c.id,
+            "name": c.name,
+            "token": c.token,
+            "status": c.status,
+            "tunnels": tunnels,
+        }));
+    }
+
+    Ok(Json(json!({
+        "node_id": node.id,
+        "name": node.name,
+        "tunnel_endpoint": node.tunnel_endpoint,
+        "clients": client_entries,
+    })))
+}
+
+/// Reveal a node secret to admins (needed to re-show the server command).
+pub async fn secret(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Path(id): Path<i64>,
+) -> AppResult<Json<serde_json::Value>> {
+    let row: Option<NodeRow> = sqlx::query_as::<_, NodeRow>("SELECT * FROM nodes WHERE id = ?")
+        .bind(id)
+        .fetch_optional(&state.db.pool)
+        .await?;
+    row.map(|n| Json(json!({ "secret": n.secret })))
+        .ok_or(AppError::NotFound(format!("node {id}")))
 }

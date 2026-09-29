@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod clients;
 pub mod health;
 pub mod nodes;
 pub mod tunnels;
@@ -22,6 +23,10 @@ pub fn router(state: AppState) -> Router {
                 .delete(users::delete),
         )
         .route("/nodes", get(nodes::list).post(nodes::create))
+        .route("/nodes/register", axum::routing::post(nodes::register))
+        .route("/nodes/:id/secret", get(nodes::secret))
+        .route("/clients", get(clients::list).post(clients::create))
+        .route("/clients/:id", axum::routing::delete(clients::delete))
         .route(
             "/nodes/:id",
             get(nodes::get)

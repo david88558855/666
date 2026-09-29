@@ -1,4 +1,4 @@
-use crate::db::TunnelRow;
+use crate::db::{ClientRow, TunnelRow};
 use crate::error::{AppError, AppResult};
 use crate::extractors::{AdminUser, AppState, AuthUser};
 use crate::models::{Role, TunnelStatus, TunnelType};
@@ -75,7 +75,7 @@ pub async fn get(
 
 #[derive(Deserialize)]
 pub struct CreateTunnelRequest {
-    pub node_id: i64,
+    pub client_id: i64,
     pub name: String,
     pub r#type: String,
     pub local_addr: String,
@@ -95,6 +95,17 @@ pub async fn create(
     if req.name.is_empty() {
         return Err(AppError::Validation("name is empty".into()));
     }
+    let client: Option<ClientRow> =
+        sqlx::query_as::<_, ClientRow>("SELECT * FROM clients WHERE id = ?")
+            .bind(req.client_id)
+            .fetch_optional(&state.db.pool)
+            .await?;
+    let Some(client) = client else {
+        return Err(AppError::NotFound(format!("client {}", req.client_id)));
+    };
+    if user.role != Role::Admin && client.user_id != user.id {
+        return Err(AppError::Forbidden);
+    }
     let r#type = TunnelType::from_str(&req.r#type)
         .map_err(|e| AppError::Validation(e))?;
     let status = match req.status.as_deref() {
@@ -103,14 +114,29 @@ pub async fn create(
         None => TunnelStatus::Paused,
     };
     validate_tunnel(&r#type, &req.remote_port, &req.domain)?;
+
+    let dup: (i64,) = sqlx::query_as::<_, (i64,)>(
+        "SELECT COUNT(*) FROM tunnels WHERE client_id = ? AND name = ?",
+    )
+    .bind(client.id)
+    .bind(&req.name)
+    .fetch_one(&state.db.pool)
+    .await?;
+    if dup.0 > 0 {
+        return Err(AppError::Conflict(format!(
+            "tunnel {} already exists on this client",
+            req.name
+        )));
+    }
+
     let token = random_token();
     let result = sqlx::query(
         "INSERT INTO tunnels
-           (user_id, node_id, name, type, local_addr, remote_port, domain, token, status)
+           (user_id, client_id, name, type, local_addr, remote_port, domain, token, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    .bind(user.id)
-    .bind(req.node_id)
+    .bind(client.user_id)
+    .bind(client.id)
     .bind(&req.name)
     .bind(r#type.as_str())
     .bind(&req.local_addr)
@@ -120,17 +146,12 @@ pub async fn create(
     .bind(status.as_str())
     .execute(&state.db.pool)
     .await
-    .map_err(|e| match e {
-        sqlx::Error::Database(db) if db.message().contains("UNIQUE") => AppError::Conflict(
-            "a tunnel with this name already exists on that node".into(),
-        ),
-        other => AppError::Db(other),
-    })?;
+    .map_err(|e| AppError::Db(e))?;
     Ok(Json(json!({
         "id": result.last_insert_rowid(),
         "name": req.name,
         "type": r#type,
-        "token": token,
+        "client_id": client.id,
     })))
 }
 

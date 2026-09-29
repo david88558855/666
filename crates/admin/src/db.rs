@@ -108,7 +108,8 @@ pub struct NodeRow {
 pub struct TunnelRow {
     pub id: i64,
     pub user_id: i64,
-    pub node_id: i64,
+    pub node_id: Option<i64>,
+    pub client_id: Option<i64>,
     pub name: String,
     pub r#type: String,
     pub local_addr: String,
@@ -117,6 +118,18 @@ pub struct TunnelRow {
     #[serde(skip)]
     pub token: String,
     pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct ClientRow {
+    pub id: i64,
+    pub user_id: i64,
+    pub node_id: i64,
+    pub name: String,
+    pub token: String,
+    pub status: String,
+    pub last_online: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
 

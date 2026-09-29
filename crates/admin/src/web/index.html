@@ -25,7 +25,6 @@
   .btn-danger { background: #fff; color: var(--red); border: 1px solid #fecaca; }
   .btn-danger:hover { background: #fef2f2; }
 
-  /* 登录 */
   .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
   .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
          padding: 40px; width: 360px; box-shadow: 0 4px 24px rgba(15,23,42,.06); }
@@ -36,7 +35,6 @@
   .login-card .btn { width: 100%; padding: 10px; margin-top: 6px; }
   .err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
 
-  /* 主界面 */
   header { background: var(--card); border-bottom: 1px solid var(--border);
          padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
   header .brand { font-weight: 700; font-size: 16px; }
@@ -68,7 +66,7 @@
   code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
   .muted { color: var(--muted); }
   .result-box { margin-top: 12px; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe;
-         border-radius: 8px; font-size: 13px; line-height: 1.8; word-break: break-all; }
+         border-radius: 8px; font-size: 13px; line-height: 1.9; word-break: break-all; }
   .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
   .warnbar { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 8px;
          padding: 10px 16px; margin-bottom: 16px; font-size: 13px; }
@@ -77,6 +75,13 @@
   .toast-item { background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 8px;
          font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.2); max-width: 80vw; }
   .toast-item.err { background: var(--red); }
+  #modal { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 90;
+         display: flex; align-items: center; justify-content: center; }
+  .modal-card { background: var(--card); border-radius: 12px; padding: 24px;
+         width: min(680px, 92vw); max-height: 84vh; overflow: auto;
+         box-shadow: 0 12px 40px rgba(15,23,42,.25); }
+  .modal-card h3 { margin-bottom: 10px; }
+  .modal-close { float: right; }
 </style>
 </head>
 <body>
@@ -103,6 +108,7 @@
   </header>
   <nav>
     <button class="tab active" data-tab="tunnels" onclick="switchTab('tunnels')">隧道</button>
+    <button class="tab" data-tab="clients" id="tabbtn-clients" onclick="switchTab('clients')">客户端</button>
     <button class="tab" data-tab="nodes" id="tabbtn-nodes" onclick="switchTab('nodes')">节点</button>
     <button class="tab" data-tab="users" id="tabbtn-users" onclick="switchTab('users')">用户</button>
     <button class="tab" data-tab="password" onclick="switchTab('password')">修改密码</button>
@@ -119,25 +125,45 @@
         <h3>新建隧道</h3>
         <div class="form-grid">
           <label>名称<input id="t-name" placeholder="web-ssh"></label>
+          <label>客户端<select id="t-client"><option value="">先创建客户端</option></select></label>
           <label>类型<select id="t-type" onchange="onTypeChange()">
             <option value="tcp">TCP</option><option value="udp">UDP</option>
             <option value="http">HTTP</option><option value="https">HTTPS</option>
           </select></label>
-          <label>节点ID<input id="t-node" type="number" min="1" placeholder="1"></label>
-          <label>本地地址<input id="t-local" placeholder="127.0.0.1:8080"></label>
-          <label id="t-port-label">远程端口<input id="t-port" type="number" placeholder="18080"></label>
+          <label>本地地址<input id="t-local" placeholder="127.0.0.1:22"></label>
+          <label id="t-port-label">远程端口<input id="t-port" type="number" placeholder="6022"></label>
           <label id="t-domain-label" style="display:none">域名<input id="t-domain" placeholder="a.example.com"></label>
           <button class="btn" onclick="createTunnel()">创建</button>
         </div>
         <div id="t-result"></div>
-        <p class="hint">tcp/udp 需填远程端口；http/https 需填域名。创建成功后请保存返回的 Token（仅显示一次）。</p>
+        <p class="hint">隧道创建/修改后自动下发到节点与客户端，无需重启客户端进程（客户端在线时约 30 秒内生效）。</p>
       </div>
       <div class="card">
         <h3>隧道列表</h3>
         <table><thead><tr>
-          <th>ID</th><th>名称</th><th>类型</th><th>节点</th><th>本地地址</th>
-          <th>远程端口</th><th>域名</th><th>状态</th><th>创建时间</th><th>操作</th>
+          <th>ID</th><th>名称</th><th>客户端</th><th>类型</th><th>本地地址</th>
+          <th>远程端口</th><th>域名</th><th>状态</th><th>操作</th>
         </tr></thead><tbody id="tunnel-rows"></tbody></table>
+      </div>
+    </section>
+
+    <!-- 客户端 -->
+    <section id="tab-clients" style="display:none">
+      <div class="card">
+        <h3>新建客户端</h3>
+        <div class="form-grid">
+          <label>名称<input id="c-name" placeholder="office-pc"></label>
+          <label>节点<select id="c-node"><option value="">先创建节点</option></select></label>
+          <button class="btn" onclick="createClient()">创建</button>
+        </div>
+        <div id="c-result"></div>
+        <p class="hint">创建后把生成的运行命令复制到内网机器上执行即可；一个客户端可承载多条隧道。</p>
+      </div>
+      <div class="card">
+        <h3>客户端列表</h3>
+        <table><thead><tr>
+          <th>ID</th><th>名称</th><th>节点</th><th>状态</th><th>最近在线</th><th>创建时间</th><th>操作</th>
+        </tr></thead><tbody id="client-rows"></tbody></table>
       </div>
     </section>
 
@@ -152,12 +178,12 @@
           <button class="btn" onclick="createNode()">创建</button>
         </div>
         <div id="n-result"></div>
-        <p class="hint">创建成功后会生成节点 Secret（仅显示一次），供隧道服务端接入。</p>
+        <p class="hint">「隧道端点」填客户端要连接的地址和端口（如节点公网 IP:7502）。</p>
       </div>
       <div class="card">
         <h3>节点列表</h3>
         <table><thead><tr>
-          <th>ID</th><th>名称</th><th>API端点</th><th>隧道端点</th><th>状态</th><th>最近心跳</th><th>创建时间</th><th>操作</th>
+          <th>ID</th><th>名称</th><th>API端点</th><th>隧道端点</th><th>状态</th><th>最近心跳</th><th>操作</th>
         </tr></thead><tbody id="node-rows"></tbody></table>
       </div>
     </section>
@@ -200,18 +226,23 @@
 </div>
 
 <div id="toast"></div>
+<div id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal-card" id="modal-body"></div>
+</div>
 
 <script>
 const TOKEN_KEY = 'gostc_token';
 let isAdmin = false;
 let mustChange = false;
+let nodesCache = [];
+let clientsCache = [];
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g,
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function val(id) { return document.getElementById(id).value.trim(); }
-function fmtTime(s) { return s ? new Date(s).toLocaleString('zh-CN', {hour12: false}) : '-'; }
+function fmtTime(s) { return s ? new Date(s).toLocaleString('zh-CN', {hour12: false}) : '从未'; }
 function statusBadge(s) {
   const map = {active:['b-green','运行中'], paused:['b-orange','已暂停'],
                online:['b-green','在线'], offline:['b-gray','离线'],
@@ -227,6 +258,19 @@ function toast(msg, isErr, ms) {
   setTimeout(() => d.remove(), ms || 4000);
 }
 function showErr(id, msg) { document.getElementById(id).textContent = msg; }
+function clientName(id) {
+  const c = clientsCache.find(x => String(x.id) === String(id));
+  return c ? c.name : (id ?? '-');
+}
+function hostOf(endpoint) {
+  const s = String(endpoint || '');
+  const m = s.match(/^(?:[a-zA-Z]+:\/\/)?([^:]+)(:\d+)?$/);
+  return m ? m[1] : s;
+}
+function nodeOfClient(clientId) {
+  const c = clientsCache.find(x => String(x.id) === String(clientId));
+  return c ? nodesCache.find(n => String(n.id) === String(c.node_id)) : null;
+}
 
 async function api(path, opts = {}) {
   const headers = {'Content-Type': 'application/json'};
@@ -253,7 +297,6 @@ async function doLogin() {
   } catch (e) { showErr('login-err', e.message); }
 }
 async function enterApp(username) {
-  // 通过管理端接口探测角色：200=管理员，403=普通用户
   try { await api('/users'); isAdmin = true; } catch (e) {
     if (String(e.message).includes('过期')) return;
     isAdmin = false;
@@ -262,9 +305,10 @@ async function enterApp(username) {
   document.getElementById('app-view').style.display = '';
   document.getElementById('whoami').textContent =
     username + (isAdmin ? '（管理员）' : '');
-  document.getElementById('tabbtn-nodes').style.display = isAdmin ? '' : 'none';
-  document.getElementById('tabbtn-users').style.display = isAdmin ? '' : 'none';
+  ['tabbtn-clients','tabbtn-nodes','tabbtn-users'].forEach(id =>
+    document.getElementById(id).style.display = isAdmin ? '' : 'none');
   document.getElementById('must-change-bar').style.display = mustChange ? '' : 'none';
+  if (isAdmin) { loadNodes(); loadClients(); }
   switchTab('tunnels');
 }
 function logoutLocal() {
@@ -278,11 +322,48 @@ function logout() { logoutLocal(); }
 function switchTab(name) {
   document.querySelectorAll('nav .tab').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === name));
-  ['tunnels','nodes','users','password'].forEach(t =>
+  ['tunnels','clients','nodes','users','password'].forEach(t =>
     document.getElementById('tab-' + t).style.display = t === name ? '' : 'none');
   if (name === 'tunnels') loadTunnels();
+  if (name === 'clients' && isAdmin) loadClients();
   if (name === 'nodes' && isAdmin) loadNodes();
   if (name === 'users' && isAdmin) loadUsers();
+}
+
+/* ---------- 命令展示 ---------- */
+function cmdHtml(cmd) {
+  return `<div class="result-box"><code>${esc(cmd)}</code>
+    <button class="btn-sm btn-ghost" onclick="copyText('${esc(cmd)}')">复制命令</button></div>`;
+}
+function serverCmd(secret) {
+  return `./gostc-rs-tunnel-server --api ${location.origin} --secret ${secret}`;
+}
+function clientCmd(client, secret) {
+  const node = nodesCache.find(n => String(n.id) === String(client.node_id));
+  const ep = node ? node.tunnel_endpoint : '<节点隧道端点>';
+  return `./gostc-rs-tunnel-client --server ${ep} --token ${secret}`;
+}
+function showModal(html) {
+  document.getElementById('modal-body').innerHTML =
+    `<button class="btn-sm btn-ghost modal-close" onclick="closeModal()">关闭</button>` + html;
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+async function showNodeCommand(id) {
+  try {
+    const d = await api('/nodes/' + id + '/secret');
+    const node = nodesCache.find(n => String(n.id) === String(id));
+    showModal(`<h3>节点「${esc(node ? node.name : id)}」运行命令</h3>
+      <p class="hint">在节点服务器（有公网 IP）上运行：</p>` + cmdHtml(serverCmd(d.secret)) +
+      `<p class="hint">运行后节点会自动注册上线，并按面板中的隧道配置开放公网端口。</p>`);
+  } catch (e) { toast(e.message, true); }
+}
+function showClientCommand(client) {
+  showModal(`<h3>客户端「${esc(client.name)}」运行命令</h3>
+    <p class="hint">在内网机器上运行（一条命令承载该客户端的所有隧道）：</p>` +
+    cmdHtml(clientCmd(client, client.token)) +
+    `<p class="hint">之后在「隧道」页新建/修改隧道即可自动生效，无需重启客户端。</p>`);
 }
 
 /* ---------- 隧道 ---------- */
@@ -292,38 +373,62 @@ function onTypeChange() {
   document.getElementById('t-port-label').style.display = isPort ? '' : 'none';
   document.getElementById('t-domain-label').style.display = isPort ? 'none' : '';
 }
+function refreshSelect(id, items, valueKey, labelFn) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = items.length
+    ? items.map(i => `<option value="${esc(i[valueKey])}">${esc(labelFn(i))}</option>`).join('')
+    : `<option value="">${id === 't-client' ? '先创建客户端' : '先创建节点'}</option>`;
+  if (cur) sel.value = cur;
+}
+function refreshSelects() {
+  refreshSelect('t-client', clientsCache, 'id', c => `#${c.id} ${c.name}`);
+  refreshSelect('c-node', nodesCache, 'id', n => `#${n.id} ${n.name}`);
+}
 async function loadTunnels() {
   try {
     const rows = await api('/tunnels');
     const tb = document.getElementById('tunnel-rows');
-    tb.innerHTML = rows.map(r => `<tr>
-      <td>${r.id}</td><td>${esc(r.name)}</td><td>${esc(r.type)}</td>
-      <td>${r.node_id}</td><td><code>${esc(r.local_addr)}</code></td>
+    tb.innerHTML = rows.map(r => {
+      const node = nodeOfClient(r.client_id);
+      const access = (r.type === 'http' || r.type === 'https')
+        ? (r.domain || '-')
+        : (node && r.remote_port ? `${hostOf(node.tunnel_endpoint)}:${r.remote_port}` : '-');
+      return `<tr>
+      <td>${r.id}</td><td>${esc(r.name)}</td>
+      <td>${esc(clientName(r.client_id))}</td><td>${esc(r.type)}</td>
+      <td><code>${esc(r.local_addr)}</code></td>
       <td>${r.remote_port ?? '-'}</td><td>${esc(r.domain ?? '-')}</td>
-      <td>${statusBadge(r.status)}</td><td>${fmtTime(r.created_at)}</td>
+      <td>${statusBadge(r.status)}<div class="muted" style="font-size:11px">${esc(access)}</div></td>
       <td>
         <button class="btn-sm btn-ghost" onclick="toggleTunnel(${r.id},'${r.status === 'active' ? 'paused' : 'active'}')">
           ${r.status === 'active' ? '暂停' : '启用'}</button>
         <button class="btn-sm btn-danger" onclick="delTunnel(${r.id})">删除</button>
-      </td></tr>`).join('') ||
-      '<tr><td colspan="10" class="muted">暂无隧道</td></tr>';
+      </td></tr>`;
+    }).join('') || '<tr><td colspan="9" class="muted">暂无隧道</td></tr>';
   } catch (e) { toast(e.message, true); }
 }
 async function createTunnel() {
   const type = document.getElementById('t-type').value;
-  const body = {node_id: parseInt(val('t-node'), 10), name: val('t-name'),
+  const body = {client_id: parseInt(val('t-client'), 10), name: val('t-name'),
                 type, local_addr: val('t-local')};
   if (!body.name) { toast('请填写隧道名称', true); return; }
-  if (!body.node_id) { toast('请填写节点 ID（先在「节点」页创建）', true); return; }
+  if (!body.client_id) { toast('请选择客户端（先在「客户端」页创建）', true); return; }
   if (!body.local_addr) { toast('请填写本地地址', true); return; }
   if (type === 'tcp' || type === 'udp') body.remote_port = parseInt(val('t-port'), 10) || null;
   else body.domain = val('t-domain') || null;
   try {
     const d = await api('/tunnels', {method: 'POST', body: JSON.stringify(body)});
+    const node = nodeOfClient(d.client_id);
+    const access = (type === 'http' || type === 'https')
+      ? (body.domain || '(域名待解析)')
+      : (node && body.remote_port ? `${hostOf(node.tunnel_endpoint)}:${body.remote_port}` : '-');
     document.getElementById('t-result').innerHTML =
-      `<div class="result-box">✅ 隧道创建成功（ID: ${d.id}），接入 Token（仅显示一次，请立即复制保存）：<br>
-       <code>${esc(d.token)}</code>
-       <button class="btn-sm btn-ghost" onclick="copyText('${esc(d.token)}')">复制</button></div>`;
+      `<div class="result-box">✅ 隧道创建成功（ID: ${d.id}）。
+       ${type === 'tcp'
+         ? '访问地址: <code>' + esc(access) + '</code>'
+         : '域名: <code>' + esc(access) + '</code>'}
+       <br>客户端在线时约 30 秒内自动生效，无需重启客户端。</div>`;
     toast('隧道创建成功');
     loadTunnels();
   } catch (e) { toast(e.message, true); }
@@ -341,17 +446,60 @@ async function delTunnel(id) {
   catch (e) { toast(e.message, true); }
 }
 
+/* ---------- 客户端 ---------- */
+async function loadClients() {
+  try {
+    clientsCache = await api('/clients');
+    refreshSelects();
+    const tb = document.getElementById('client-rows');
+    tb.innerHTML = clientsCache.map(c => {
+      const node = nodesCache.find(n => String(n.id) === String(c.node_id));
+      return `<tr>
+      <td>${c.id}</td><td>${esc(c.name)}</td>
+      <td>${node ? esc(`#${node.id} ${node.name}`) : c.node_id}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td>${fmtTime(c.last_online)}</td><td>${fmtTime(c.created_at)}</td>
+      <td>
+        <button class="btn-sm btn-ghost" onclick='showClientCommand(${esc(JSON.stringify({id: c.id, name: c.name, node_id: c.node_id, token: c.token}))})'>运行命令</button>
+        <button class="btn-sm btn-danger" onclick="delClient(${c.id})">删除</button>
+      </td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="muted">暂无客户端</td></tr>';
+  } catch (e) { toast(e.message, true); }
+}
+async function createClient() {
+  const body = {name: val('c-name'), node_id: parseInt(val('c-node'), 10)};
+  if (!body.name) { toast('请填写客户端名称', true); return; }
+  if (!body.node_id) { toast('请选择节点（先在「节点」页创建）', true); return; }
+  try {
+    const d = await api('/clients', {method: 'POST', body: JSON.stringify(body)});
+    document.getElementById('c-result').innerHTML =
+      `<div class="result-box">✅ 客户端「${esc(d.name)}」创建成功（ID: ${d.id}）。
+       把下面的命令复制到内网机器上运行：</div>` +
+      cmdHtml(clientCmd(d, d.token));
+    toast('客户端创建成功');
+    loadClients();
+  } catch (e) { toast(e.message, true); }
+}
+async function delClient(id) {
+  if (!confirm('确认删除客户端 #' + id + '？其名下隧道将一并删除。')) return;
+  try { await api('/clients/' + id, {method: 'DELETE'}); toast('已删除'); loadClients(); loadTunnels(); }
+  catch (e) { toast(e.message, true); }
+}
+
 /* ---------- 节点 ---------- */
 async function loadNodes() {
   try {
-    const rows = await api('/nodes');
+    nodesCache = await api('/nodes');
+    refreshSelects();
     const tb = document.getElementById('node-rows');
-    tb.innerHTML = rows.map(r => `<tr>
+    tb.innerHTML = nodesCache.map(r => `<tr>
       <td>${r.id}</td><td>${esc(r.name)}</td><td><code>${esc(r.api_endpoint)}</code></td>
       <td><code>${esc(r.tunnel_endpoint)}</code></td><td>${statusBadge(r.status)}</td>
-      <td>${fmtTime(r.last_heartbeat)}</td><td>${fmtTime(r.created_at)}</td>
-      <td><button class="btn-sm btn-danger" onclick="delNode(${r.id})">删除</button></td>
-      </tr>`).join('') || '<tr><td colspan="8" class="muted">暂无节点</td></tr>';
+      <td>${fmtTime(r.last_heartbeat)}</td>
+      <td>
+        <button class="btn-sm btn-ghost" onclick="showNodeCommand(${r.id})">运行命令</button>
+        <button class="btn-sm btn-danger" onclick="delNode(${r.id})">删除</button>
+      </td></tr>`).join('') || '<tr><td colspan="7" class="muted">暂无节点</td></tr>';
   } catch (e) { toast(e.message, true); }
 }
 async function createNode() {
@@ -361,15 +509,15 @@ async function createNode() {
   try {
     const d = await api('/nodes', {method: 'POST', body: JSON.stringify(body)});
     document.getElementById('n-result').innerHTML =
-      `<div class="result-box">✅ 节点创建成功（ID: ${d.id}），节点 Secret（仅显示一次，请立即复制保存）：<br>
-       <code>${esc(d.secret)}</code>
-       <button class="btn-sm btn-ghost" onclick="copyText('${esc(d.secret)}')">复制</button></div>`;
+      `<div class="result-box">✅ 节点「${esc(d.name)}」创建成功（ID: ${d.id}）。
+       把下面的命令复制到节点服务器上运行：</div>` +
+      cmdHtml(serverCmd(d.secret));
     toast('节点创建成功');
     loadNodes();
   } catch (e) { toast(e.message, true); }
 }
 async function delNode(id) {
-  if (!confirm('确认删除节点 #' + id + '？其下隧道将不可用。')) return;
+  if (!confirm('确认删除节点 #' + id + '？其下客户端与隧道将不可用。')) return;
   try { await api('/nodes/' + id, {method: 'DELETE'}); toast('已删除'); loadNodes(); }
   catch (e) { toast(e.message, true); }
 }
@@ -399,7 +547,7 @@ async function createUser() {
   } catch (e) { toast(e.message, true); }
 }
 async function delUser(id) {
-  if (!confirm('确认删除用户 #' + id + '？其名下隧道将一并失效。')) return;
+  if (!confirm('确认删除用户 #' + id + '？其名下数据将一并失效。')) return;
   try { await api('/users/' + id, {method: 'DELETE'}); toast('已删除'); loadUsers(); }
   catch (e) { toast(e.message, true); }
 }
@@ -424,8 +572,6 @@ function copyText(t) {
   navigator.clipboard.writeText(t).then(() => toast('已复制到剪贴板'))
     .catch(() => toast('复制失败，请手动选择复制', true));
 }
-
-/* ---------- 启动 ---------- */
 function tokenUsername() {
   const t = localStorage.getItem(TOKEN_KEY);
   if (!t) return '';
@@ -437,7 +583,7 @@ function tokenUsername() {
 }
 (async function boot() {
   onTypeChange();
-  if (!localStorage.getItem(TOKEN_KEY)) return; // 停留在登录页
+  if (!localStorage.getItem(TOKEN_KEY)) return;
   try { await enterApp(tokenUsername()); } catch (e) { /* 401 时已回到登录页 */ }
 })();
 </script>

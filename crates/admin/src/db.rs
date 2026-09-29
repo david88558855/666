@@ -99,6 +99,9 @@ pub struct NodeRow {
     pub secret: String,
     pub api_endpoint: String,
     pub tunnel_endpoint: String,
+    /// Transport protocol tunnel-clients use to reach this node
+    /// (tcp | quic | websocket | kcp). See ARCHITECTURE.md section 7.
+    pub transport: String,
     pub status: String,
     pub last_heartbeat: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,

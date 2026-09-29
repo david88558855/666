@@ -56,6 +56,12 @@ struct RegisterResponse {
     #[allow(dead_code)]
     name: String,
     tunnel_endpoint: String,
+    /// Transport protocol fixed for this node (tcp | quic | websocket | kcp).
+    /// Informational until the orbien-based transport lands (Phase 3);
+    /// tcp is the only one the current listener serves.
+    #[serde(default)]
+    #[allow(dead_code)]
+    transport: String,
     clients: Vec<ClientInfo>,
 }
 
@@ -111,6 +117,7 @@ async fn main() -> Result<()> {
     info!(
         node_id = reg.node_id,
         name = %reg.name,
+        transport = %reg.transport,
         clients = reg.clients.len(),
         "registered with admin api"
     );

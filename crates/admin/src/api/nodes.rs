@@ -43,11 +43,27 @@ pub async fn get(
     row.map(Json).ok_or(AppError::NotFound(format!("node {id}")))
 }
 
+/// Transport protocols a node can fix for tunnel-clients (orbien-aligned).
+pub const TRANSPORTS: [&str; 4] = ["tcp", "quic", "websocket", "kcp"];
+
+fn validate_transport(t: &str) -> AppResult<()> {
+    if TRANSPORTS.contains(&t) {
+        Ok(())
+    } else {
+        Err(AppError::Validation(format!(
+            "invalid transport: {t} (expected one of {TRANSPORTS:?})"
+        )))
+    }
+}
+
 #[derive(Deserialize)]
 pub struct CreateNodeRequest {
     pub name: String,
     pub api_endpoint: String,
     pub tunnel_endpoint: String,
+    /// Transport protocol for tunnel-clients; defaults to tcp.
+    #[serde(default)]
+    pub transport: String,
 }
 
 pub async fn create(
@@ -58,15 +74,22 @@ pub async fn create(
     if req.name.is_empty() {
         return Err(AppError::Validation("name is empty".into()));
     }
+    let transport = if req.transport.is_empty() {
+        "tcp".to_string()
+    } else {
+        validate_transport(&req.transport)?;
+        req.transport.clone()
+    };
     let secret = random_secret();
     let result = sqlx::query(
-        "INSERT INTO nodes (name, secret, api_endpoint, tunnel_endpoint)
-         VALUES (?, ?, ?, ?)",
+        "INSERT INTO nodes (name, secret, api_endpoint, tunnel_endpoint, transport)
+         VALUES (?, ?, ?, ?, ?)",
     )
     .bind(&req.name)
     .bind(&secret)
     .bind(&req.api_endpoint)
     .bind(&req.tunnel_endpoint)
+    .bind(&transport)
     .execute(&state.db.pool)
     .await
     .map_err(|e| match e {
@@ -79,6 +102,7 @@ pub async fn create(
         "id": result.last_insert_rowid(),
         "name": req.name,
         "secret": secret,
+        "transport": transport,
     })))
 }
 
@@ -90,6 +114,8 @@ pub struct UpdateNodeRequest {
     pub api_endpoint: Option<String>,
     #[serde(default)]
     pub tunnel_endpoint: Option<String>,
+    #[serde(default)]
+    pub transport: Option<String>,
     #[serde(default)]
     pub status: Option<String>,
 }
@@ -117,6 +143,14 @@ pub async fn update(
     if let Some(ep) = req.tunnel_endpoint {
         sqlx::query("UPDATE nodes SET tunnel_endpoint = ? WHERE id = ?")
             .bind(ep)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(t) = req.transport {
+        validate_transport(&t)?;
+        sqlx::query("UPDATE nodes SET transport = ? WHERE id = ?")
+            .bind(t)
             .bind(id)
             .execute(&state.db.pool)
             .await?;
@@ -239,6 +273,7 @@ pub async fn register(
         "node_id": node.id,
         "name": node.name,
         "tunnel_endpoint": node.tunnel_endpoint,
+        "transport": node.transport,
         "clients": grouped.into_values().collect::<Vec<_>>(),
     })))
 }

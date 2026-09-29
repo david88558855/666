@@ -13,12 +13,15 @@
 
 ### 1.2 目标与对齐基线
 
-用 **Rust** 重写一套等价平台，代号 `gostc-rs`，两条对齐线：
+用 **Rust** 重写 gostc（避免重写 frp 的时间成本），代号 `gostc-rs`。对齐策略：
 
-| 层 | 对齐对象 | 对齐内容 |
+- **gostc-open 是产品蓝本**：面板体验、多用户/多节点/客户端/隧道模型、配置下发 —— 全部按 gostc 复刻
+- **orbien 是数据面底层**：`orbien-org/orbien` 本身就是 Rust 实现的 frp 等价物（TCP/UDP/HTTP/HTTPS/SOCKS5 隧道，TCP+yamux/QUIC/WebSocket/KCP 传输，token/mTLS），**直接复用其底层**，不重写隧道协议栈
+
+| 层 | 对齐对象 | 对齐方式 |
 |---|---|---|
 | **管理面（控制台）** | gostc-open | 面板版块/交互/术语：登录、全站统计、节点管理、客户端、私有隧道、用户管理；节点/客户端创建即给出运行命令；隧道改动自动下发 |
-| **数据面（隧道协议）** | orbien-org/orbien | 消息帧与消息集、HMAC 鉴权、控制/数据连接分离、数据连接池、传输栈（TCP+yamux / QUIC / WebSocket / KCP，TLS/mTLS）、隧道类型（TCP / UDP / HTTP / HTTPS / SOCKS5） |
+| **数据面（隧道协议）** | orbien-org/orbien | **直接复用**：core 消息协议 + 传输栈以库/子进程形式嵌入 tunnel-server 与 tunnel-client（见 §7.6 集成路线） |
 
 非目标：
 
@@ -65,7 +68,7 @@
 | 管理后端 | axum 0.7 + tokio | REST + 静态托管 |
 | 持久化 | sqlx 0.8 + SQLite | 单文件部署，编译期迁移 |
 | 鉴权 | jsonwebtoken(HS256) + argon2 | 管理面 JWT；节点/客户端用 secret/token |
-| 数据面协议 | 自研实现，**协议规格对齐 orbien** | 见 §7；不 fork 源码，消息帧/流程/传输栈规格照 orbien |
+| 数据面协议 | **直接复用 orbien 底层** | core 消息协议与传输栈嵌入 tunnel-server / tunnel-client；集成路线见 §7.6 |
 | 传输栈（规划） | tokio + yamux + rustls + quinn + kcp-tokio | 与 orbien 同栈，见 §7.4 支持矩阵 |
 | 前端 | 内嵌单文件 HTML（include_str!） | 无外部 CDN，air-gapped 可用；版块对齐 gostc |
 
@@ -124,7 +127,21 @@ gostc-rs/                                  # GitHub: david88558855/666
 
 ---
 
-## 7. 数据面协议（对齐 orbien）
+## 7. 数据面（orbien 底层）
+
+> 定位：orbien（Rust 实现的 frp 等价物）是本项目**直接复用的底层**，不是重写对象。
+> 以下 §7.1–7.5 是其协议快照（理解与排障用），§7.6 是嵌入 gostc-rs 的集成路线，§7.7 是与 gostc-open 的功能差距清单。
+
+### 7.0 传输协议选型（节点级配置）
+
+与 orbien 的 `[transport] protocol` 对应：**每个节点在面板创建/编辑时固定一种传输协议**，客户端连接该节点时自动使用同一协议：
+
+| 协议 | 说明 | 节点侧端口 | 现状 |
+|---|---|---|---|
+| `tcp`（默认） | TCP，可叠 yamux 复用 | `listen` 单端口 | ✅ 字段/面板/API 已通；转发为 MVP 简化协议 |
+| `quic` | quinn，抗丢包、原生多流 | `quicPort` | ✅ 配置链路已通；数据面待 orbien 接入 |
+| `websocket` | HTTP upgrade，可过 CDN | `listen` + `wsPath` | ✅ 配置链路已通；数据面待 orbien 接入 |
+| `kcp` | kcp-tokio，弱网加速 | `kcpPort` | ✅ 配置链路已通；数据面待 orbien 接入 |
 
 ### 7.1 协议总览
 
@@ -193,14 +210,41 @@ orbien 的隧道协议是「**控制连接 + 独立数据连接池**」模型（
 
 ALPN 约定、自签证书生成（rcgen）等细节照 orbien `core/src/transport/tls.rs` 规格。
 
-### 7.6 隧道类型支持矩阵
+### 7.6 orbien 底层集成路线（Phase 3 核心）
 
-| 类型 | 状态 | 说明 |
+orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同：
+
+| 部件 | orbien 形态 | gostc-rs 集成方式 |
 |---|---|---|
-| TCP | ✅ 已可用（MVP 简化协议） | Phase 2 切换为 orbien 消息协议 + 连接池 |
-| UDP | 面板可建，转发待实现 | 控制面载荷 UdpPacket（`D`） |
-| HTTP/HTTPS | 面板可建，转发待实现 | 节点内置域名路由（替代已移除的 gateway 组件） |
-| SOCKS5 | 未开始 | 对齐 orbien client plugin（客户端本地代理出口） |
+| `orbien-core`（协议+传输+配置） | 独立 lib | **作为库依赖直接引入**（vendored 到 `third-party/orbien`，Apache-2.0 保留声明） |
+| `orbien` client | lib + bin（`ClientHandle`/`StartOptions`/`ClientConfig`/`Service`/`reload`/`local_control`） | **库级嵌入** `gostc-rs-tunnel-client`：面板下发的隧道列表生成 `ClientConfig.tunnels`，经 `reload` 热更新，无需重启进程 |
+| `orbien-server` | 仅 bin（无 lib） | `gostc-rs-tunnel-server` **子进程托管**：写 `orbien-server.toml`（listen/auth/transport/quicPort/kcpPort）→ 启动/重启子进程；节点传输协议来自面板 |
+
+配置映射（面板 → orbien）：
+
+- 节点 `transport` → server 端 `listen/quicPort/kcpPort` + client 端 `[transport] protocol`
+- 隧道 `{name, type, local_addr, remote_port, domain}` → client 端 `[[tunnels]] {name, protocol, service, remotePort, domains}`
+- 节点 `secret` / 客户端 `token` → `[auth] type="token" token=...`
+- 后续：`[tunnels.transport] bandwidth`（限速）、`basicAuthUser/Password`、`headers`（HTTP 隧道增强）
+
+### 7.7 gostc 功能差距清单（Roadmap 对照 gostc-open）
+
+| gostc 功能 | 状态 | 计划 |
+|---|---|---|
+| 节点：创建/删除/命令展示/心跳在线 | ✅ | — |
+| 节点：传输协议选择（tcp/quic/ws/kcp） | ✅ 配置链路 | orbien 接入后生效 |
+| 客户端：创建/命令/在线状态 | ✅ | — |
+| 隧道：TCP 转发 | ✅ MVP | 切 orbien 协议（§7.6） |
+| 隧道：UDP / HTTP / HTTPS 转发 | ❌ 仅可建 | Phase 3/4（orbien tunnel 类型） |
+| 隧道：带宽限制 / Basic Auth / 自定义 Header | ❌ | Phase 4 |
+| 端口转发（forward） / 域名解析（host） | ❌ | Phase 4 |
+| SOCKS5 / P2P 隧道 | ❌ | Phase 4+（orbien client plugin） |
+| 用户：流量配额 / 带宽限制生效 | ❌ 表结构已有 | Phase 4 |
+| 流量统计 / 报表 | ❌ | Phase 4（metrics 对齐 orbien counter 栈） |
+| 全站统计趋势图 | 简版卡片 | Phase 4 |
+| 通知公告 / 系统配置页 | ❌ | Phase 4+ |
+| 操作审计日志 | ❌ 表结构已有 | Phase 4+ |
+| ACME 证书自动申请 | ❌ | Phase 4（orbien 内建） |
 
 ---
 
@@ -253,9 +297,11 @@ services:
 ### Phase 3：隧道数据面（进行中）
 
 - [x] TCP 隧道 MVP（简化协议：`GOSTC1` 握手 + `DIAL` 借道）
-- [ ] **数据面切换为 orbien 消息协议**：消息帧 + Login/NewTunnel/数据连接池/StartDataConn（§7.2–7.4）
+- [x] 节点传输协议选择（tcp/quic/websocket/kcp）：迁移 004 + API + 面板下拉/编辑，注册与客户端连接响应均已下发
+- [ ] **orbien 底层接入（§7.6）**：vendored `orbien-core`；client 库级嵌入（ClientConfig + reload 热更新）；server 子进程托管
+- [ ] 面板隧道配置 → orbien `ClientConfig.tunnels` 映射（name/protocol/service/remotePort/domains）
 - [ ] HMAC-SHA256 鉴权 + 防重放替代明文 token
-- [ ] TCP + yamux 复用 + rustls（自签证书）
+- [ ] TCP + yamux 复用 + rustls（自签证书）；QUIC/WebSocket/KCP 按节点协议生效
 - [ ] UDP 隧道转发（UdpPacket 控制面载荷）
 - [ ] 带宽限制（token bucket，按隧道配置）
 
@@ -292,6 +338,7 @@ Apache-2.0。`NOTICE` 声明：gostc-open（管理面设计参照）、orbien-or
 
 ## 12. 版本记录
 
+- **v0.4 — 2026-09-29**：明确产品定位——gostc 为产品蓝本（Rust 重构），orbien 为**直接复用的数据面底层**（client 库级嵌入 + server 子进程托管，§7.6）；新增节点传输协议选择（tcp/quic/websocket/kcp，§7.0，配置链路已实现）；新增 gostc 功能差距清单（§7.7）
 - **v0.3 — 2026-09-29**：确立双对齐基线（管理面 gostc / 数据面 orbien-org/orbien）；§7 落档 orbien 协议规格快照（消息帧/类型表/HMAC 鉴权/数据连接池/传输矩阵）；移除 gateway 组件（HTTP/HTTPS 改由节点内置路由）；更新仓库结构、部署形态与 Phase 进度
 - v0.2 — 2026-09-29：传输层基线由 rathole 调整为 orbien
 - v0.1 — 初始提案

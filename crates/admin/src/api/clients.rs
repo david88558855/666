@@ -134,6 +134,7 @@ pub async fn connect(
                 "id": n.id,
                 "name": n.name,
                 "tunnel_endpoint": n.tunnel_endpoint,
+                "transport": n.transport,
             })
         })
         .collect();

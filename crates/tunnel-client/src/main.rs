@@ -41,6 +41,12 @@ struct ConnectNode {
     #[allow(dead_code)]
     id: i64,
     tunnel_endpoint: String,
+    /// Transport protocol of the node (tcp | quic | websocket | kcp).
+    /// Informational until the orbien-based transport lands (Phase 3);
+    /// the current dialer only speaks tcp.
+    #[serde(default)]
+    #[allow(dead_code)]
+    transport: String,
 }
 
 #[derive(Debug, Deserialize)]

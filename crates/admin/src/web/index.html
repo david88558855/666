@@ -244,7 +244,7 @@
             <button class="btn-sm" onclick="showNodeCreate()">新建节点</button>
           </div>
           <div class="table-wrap"><table><thead><tr>
-            <th>ID</th><th>名称</th><th>API端点</th><th>隧道端点</th><th>状态</th><th>最近心跳</th><th>操作</th>
+            <th>ID</th><th>名称</th><th>传输</th><th>API端点</th><th>隧道端点</th><th>状态</th><th>最近心跳</th><th>操作</th>
           </tr></thead><tbody id="node-rows"></tbody></table></div>
         </div>
       </section>
@@ -659,28 +659,70 @@ async function loadNodes() {
     nodesCache = await api('/nodes');
     const tb = document.getElementById('node-rows');
     tb.innerHTML = nodesCache.map(r => `<tr>
-      <td>${r.id}</td><td>${esc(r.name)}</td><td><code>${esc(r.api_endpoint)}</code></td>
+      <td>${r.id}</td><td>${esc(r.name)}</td>
+      <td><span class="badge ${r.transport === 'tcp' ? 'b-blue' : 'b-orange'}">${esc((r.transport || 'tcp').toUpperCase())}</span></td>
+      <td><code>${esc(r.api_endpoint)}</code></td>
       <td><code>${esc(r.tunnel_endpoint)}</code></td>
       <td>${onlineBadge(r.last_heartbeat)}</td>
       <td>${fmtTime(r.last_heartbeat)}</td>
       <td>
         <button class="btn-sm btn-ghost" onclick="showNodeCommand(${r.id})">运行命令</button>
+        <button class="btn-sm btn-ghost" onclick='showNodeEdit(${esc(JSON.stringify(r))})'>编辑</button>
         <button class="btn-sm btn-danger" onclick="delNode(${r.id})">删除</button>
-      </td></tr>`).join('') || '<tr><td colspan="7" class="empty">暂无节点</td></tr>';
+      </td></tr>`).join('') || '<tr><td colspan="8" class="empty">暂无节点</td></tr>';
   } catch (e) { toast(e.message, true); }
 }
 function showNodeCreate() {
   showModal(`<h3>新建节点</h3>
     <div class="form-item"><label>名称</label><input id="n-name" placeholder="node-1"></div>
-    <div class="form-item"><label>API端点（节点回连面板的地址）</label>
-      <input id="n-api" placeholder="面板IP:8080 或 127.0.0.1:8080"></div>
+    <div class="form-row">
+      <div class="form-item"><label>传输协议（客户端连接节点使用）</label>
+        <select id="n-transport">
+          <option value="tcp" selected>TCP（默认）</option>
+          <option value="quic">QUIC</option>
+          <option value="websocket">WebSocket</option>
+          <option value="kcp">KCP</option>
+        </select></div>
+      <div class="form-item"><label>API端点（节点回连面板的地址）</label>
+        <input id="n-api" placeholder="面板IP:8080 或 127.0.0.1:8080"></div>
+    </div>
     <div class="form-item"><label>隧道端点（客户端要连接的地址和端口）</label>
       <input id="n-tunnel" placeholder="0.0.0.0:7502，公网访问用 节点公网IP:7502"></div>
-    <button class="btn" style="width:100%" onclick="createNode()">创建</button>`);
+    <button class="btn" style="width:100%" onclick="createNode()">创建</button>
+    <p class="hint">QUIC / WebSocket / KCP 为传输层选项（对齐 orbien），当前数据面版本先行记录配置，传输栈接入后自动生效。</p>`);
+}
+function showNodeEdit(node) {
+  const t = node.transport || 'tcp';
+  showModal(`<h3>编辑节点「${esc(node.name)}」（ID: ${node.id}）</h3>
+    <div class="form-row">
+      <div class="form-item"><label>传输协议</label>
+        <select id="ne-transport">
+          <option value="tcp" ${t === 'tcp' ? 'selected' : ''}>TCP</option>
+          <option value="quic" ${t === 'quic' ? 'selected' : ''}>QUIC</option>
+          <option value="websocket" ${t === 'websocket' ? 'selected' : ''}>WebSocket</option>
+          <option value="kcp" ${t === 'kcp' ? 'selected' : ''}>KCP</option>
+        </select></div>
+      <div class="form-item"><label>API端点</label>
+        <input id="ne-api" value="${esc(node.api_endpoint)}"></div>
+    </div>
+    <div class="form-item"><label>隧道端点</label>
+      <input id="ne-tunnel" value="${esc(node.tunnel_endpoint)}"></div>
+    <button class="btn" style="width:100%" onclick="updateNode(${node.id})">保存</button>`);
+}
+async function updateNode(id) {
+  const body = {api_endpoint: val('ne-api'), tunnel_endpoint: val('ne-tunnel'),
+                transport: document.getElementById('ne-transport').value};
+  try {
+    await api('/nodes/' + id, {method: 'PATCH', body: JSON.stringify(body)});
+    toast('节点已更新（客户端约 30 秒内自动应用）');
+    closeModal();
+    loadNodes();
+  } catch (e) { toast(e.message, true); }
 }
 async function createNode() {
   const body = {name: val('n-name'), api_endpoint: val('n-api'),
-                tunnel_endpoint: val('n-tunnel')};
+                tunnel_endpoint: val('n-tunnel'),
+                transport: document.getElementById('n-transport').value};
   if (!body.name) { toast('请填写节点名称', true); return; }
   try {
     const d = await api('/nodes', {method: 'POST', body: JSON.stringify(body)});

@@ -5,7 +5,6 @@ members = [
     "crates/admin",
     "crates/tunnel-server",
     "crates/tunnel-client",
-    "crates/gateway",
 ]
 
 [workspace.package]

@@ -39,7 +39,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Modifications to derivative works:
 - This project is a Rust-language reimplementation, not a translation of
-  source files. The data-plane protocol is rathole's native protocol.
+  source files. The data-plane protocol is an original implementation whose
+  wire format and flow are specified after orbien-org/orbien (see
+  ARCHITECTURE.md section 7); the management-plane UX follows gostc-open.
 - No source code from the upstream projects is copied verbatim.
 - Configuration formats, command-line interfaces, and database schemas
   are designed from scratch.

@@ -1,7 +1,7 @@
 # gostc-rs 架构方案
 
-> 基于 [SianHH/gostc-open](https://github.com/SianHH/gostc-open)（Apache-2.0）的 Rust 重写项目架构方案。
-> 本文档是 **设计提案**，不包含最终代码实现。代码实施需经评审通过后再开始。
+> 基于 [SianHH/gostc-open](https://github.com/SianHH/gostc-open)（Apache-2.0）的 Rust 重写项目。
+> 对齐策略：**管理面体验对齐 gostc-open，数据面协议对齐 [orbien-org/orbien](https://github.com/orbien-org/orbien)**。
 
 ---
 
@@ -9,119 +9,67 @@
 
 ### 1.1 背景
 
-`gostc-open` 是基于 FRP 衍生版（`SianHH/frp-package`）的 Go 内网穿透管理平台，包含 4 个组件：管理服务端、节点/客户端、网关、前端控制台。代码规模：
+`gostc-open` 是基于 FRP 衍生版的 Go 内网穿透管理平台：Web 控制台统一管理用户、节点、客户端与隧道，节点与客户端都只连中央控制台，启动没有先后顺序，配置在面板修改后自动下发。
 
-| 组件 | 语言 | 文件数 | 行数（粗略） |
-|---|---|---|---|
-| `server`（管理后端） | Go | 386 | 4 829 |
-| `client`（节点/客户端） | Go | 98 | 5 351 |
-| `proxy`（网关） | Go | 32 | 1 732 |
-| `web`（前端） | Vue | 133 | — |
+### 1.2 目标与对齐基线
 
-依赖：Gin（HTTP 框架）、arpx（自定义 RPC）、JWT、Cobra、SQLite/MySQL、Go-Gost x 等。底层 FRP 隧道通过 `SianHH/frp-package` 引入（FRP 本身的 50k+ 行 Go 不直接出现在仓库）。
+用 **Rust** 重写一套等价平台，代号 `gostc-rs`，两条对齐线：
 
-### 1.2 目标
+| 层 | 对齐对象 | 对齐内容 |
+|---|---|---|
+| **管理面（控制台）** | gostc-open | 面板版块/交互/术语：登录、全站统计、节点管理、客户端、私有隧道、用户管理；节点/客户端创建即给出运行命令；隧道改动自动下发 |
+| **数据面（隧道协议）** | orbien-org/orbien | 消息帧与消息集、HMAC 鉴权、控制/数据连接分离、数据连接池、传输栈（TCP+yamux / QUIC / WebSocket / KCP，TLS/mTLS）、隧道类型（TCP / UDP / HTTP / HTTPS / SOCKS5） |
 
-用 **Rust** 重写一套等价的内网穿透管理平台，代号 `gostc-rs`，提供：
+非目标：
 
-1. 与 gostc-open **功能等价的核心能力**：多用户、多节点、隧道注册、运行时配置、节点认证
-2. **更高的运行时效率**（Rust 异步生态 + 单二进制部署）
-3. **更小的体积**（单 binary ≤ 10 MB，参考 rathole ~500KB 的水平做减法）
-4. **协议可选**：原生 Rust 协议（基于 rathole 兼容），不强制兼容 FRP 协议以避免引入 FRP 整套 Go 实现
-
-### 1.3 非目标
-
-- 不复刻 gostc-open 的全部商业版特性（CDK、易支付、用户组套餐）。这些是商业运营特性，不属于开源版应有范围
-- 不实现 Windows GUI 客户端（gostc-open 的 `client/gui` 是 Gio 实现的桌面壳，第一版不需要）
-- 不替代 FRP 官方客户端。要兼容老 FRP 客户端，需另起项目维护协议层
+- 不兼容 FRP 官方客户端协议
+- 不复刻 gostc-open 商业版特性（CDK、易支付、用户组套餐）
+- ~~自定义域名网关 `gostc-rs-gateway`~~（**已从范围移除**；HTTP/HTTPS 域名路由由节点内置实现，对齐 orbien 的 `http.rs`/`https.rs` 隧道）
 
 ---
 
-## 2. 总体架构
+## 2. 总体架构（当前已实现形态）
 
 ```
-                  ┌──────────────────────────────────────────────┐
-                  │  管理后端 gostc-rs-admin (Rust + axum)         │
-                  │  - REST API + WebSocket 控制面                  │
-                  │  - 用户/节点/隧道/限速 CRUD                       │
-                  │  - 持久化：SQLite（默认）/ PostgreSQL（可选）     │
-                  │  - 鉴权：JWT（短期）+ API Key                    │
-                  │  - 静态托管 web/（管理后台）                       │
-                  └──────┬──────────────────────┬──────────────────┘
-                         │ 控制面 (HTTP/WS, JWT)  │ 配置下发 (HTTP/WS)
-                         ▼                      ▼
-        ┌─────────────────────────┐  ┌─────────────────────────────┐
-        │ 节点 gostc-rs-tunnel-   │  │ 网关 gostc-rs-gateway (Rust) │
-        │ server (Rust, rathole)  │  │  - 自定义域名路由             │
-        │  - 监听控制面连接        │  │  - TLS 终止                  │
-        │  - 拉取隧道配置          │  │  - 转发到 tunnel-server      │
-        │  - 对外暴露隧道端口       │  └──────────────┬──────────────┘
-        └──────┬──────────────────┘                 │
-               │ 数据面 (TCP/UDP, token auth)        │
-               ▼                                    │
-        ┌─────────────────────────┐                 │
-        │ 客户端 gostc-rs-tunnel- │ ────────────────┘
-        │ client (Rust, rathole)  │   反向连接到最近的节点
-        │  - 长连接到节点          │
-        │  - 提供 local_addr 服务  │
-        └─────────────────────────┘
+                  ┌────────────────────────────────────────────────┐
+                  │   中央控制台 gostc-rs-admin (Rust + axum)        │
+                  │   - REST API + 内嵌单文件中文 Web 面板            │
+                  │   - 用户 / 节点 / 客户端 / 隧道 CRUD              │
+                  │   - SQLite（sqlx 迁移）+ JWT + argon2            │
+                  └──────┬─────────────────────────┬────────────────┘
+             注册/心跳/拉配置 │ HTTP（30s 轮询）         │ HTTP（30s 轮询）
+                          ▼                        ▼
+        ┌──────────────────────────┐   ┌──────────────────────────┐
+        │ 节点 gostc-rs-tunnel-    │   │ 客户端 gostc-rs-tunnel-   │
+        │ server（公网服务器）        │   │ client（内网机器）          │
+        │ - 按隧道配置开放公网端口    │◄──┼─ 反向数据连接（连接池）      │
+        │ - ingress 分发            │   │ - 连接 local_addr 服务     │
+        └──────────────────────────┘   └──────────────────────────┘
+                  ▲  数据面（orbien 对齐协议）
+                  └── 终端用户访问 节点公网IP:remote_port
 ```
 
-**两平面分离**：
-- **控制面**：节点/客户端通过 HTTPS + JWT 与 `admin` 通信（配置、心跳、状态上报）
-- **数据面**：终端用户访问 `tunnel-server` 暴露的端口，数据通过 `tunnel-client` 反向通道回到内网服务
+**连接模型（与 gostc 一致）**：
+
+- 节点与客户端**都只连中央控制台**，启动无先后顺序
+- 客户端只需 `--api <面板地址> --token <客户端Token>`，无需知道节点地址
+- **绑定关系在隧道上**：创建隧道时选「客户端 + 节点」
+- 心跳即配置下发：节点 30s 重注册、客户端 30s 轮询，面板改动自动生效无需重启
 
 ---
 
 ## 3. 技术选型
 
-### 3.1 传输层（隧道）
+| 领域 | 选型 | 说明 |
+|---|---|---|
+| 管理后端 | axum 0.7 + tokio | REST + 静态托管 |
+| 持久化 | sqlx 0.8 + SQLite | 单文件部署，编译期迁移 |
+| 鉴权 | jsonwebtoken(HS256) + argon2 | 管理面 JWT；节点/客户端用 secret/token |
+| 数据面协议 | 自研实现，**协议规格对齐 orbien** | 见 §7；不 fork 源码，消息帧/流程/传输栈规格照 orbien |
+| 传输栈（规划） | tokio + yamux + rustls + quinn + kcp-tokio | 与 orbien 同栈，见 §7.4 支持矩阵 |
+| 前端 | 内嵌单文件 HTML（include_str!） | 无外部 CDN，air-gapped 可用；版块对齐 gostc |
 
-> 命名澄清：本节提到的 **orbien** 指 [`orbien-org/orbien`](https://github.com/orbien-org/orbien)（纯 Rust，Apache-2.0，v3.0.0，5MB binary）。还有一个同名仓库 [`lxien/orbien`](https://github.com/lxien/orbien) 是 Java Netty 服务端 + 小 Rust 客户端的混合栈，不适合本项目"全 Rust"的目标，**不在本方案参照中**。
-
-| 选项 | 评价 |
-|---|---|
-| **orbien**（推荐） | 全 Rust，Tokio + yamux + quinn + rustls + kcp-tokio + axum；传输支持 TCP / WebSocket / QUIC / KCP；应用层支持 TCP / UDP / HTTP / HTTPS / SOCKS5 / 文件共享；自带 Web 管理 dashboard；token + mTLS；与 gostc-open 的特性重合度最高 |
-| rathole | 14.1k stars，体积 ~500KB 更小；但传输只支持 TCP/TLS/Noise/WS，不支持 QUIC/KCP，对 gostc-open 特性覆盖度低；作为更轻量的备选保留 |
-| 自研 tokio + yamux + rustls | 完全可控但工作量量大；MVP 不必要 |
-
-**结论**：MVP 阶段 fork `orbien-org/orbien` 为内部 crate，**先以子进程方式**调用 orbien 的 `orbien-server` / `orbien` 二进制（写 TOML + SIGHUP reload），不深度改 orbien 源码。中后期视需求，将 orbien 的核心库化为内部 crate，让 admin 进程直接控制其生命周期（减少一个进程）。
-
-### 3.2 管理后端
-
-| 依赖 | 用途 |
-|---|---|
-| `axum` 0.7+ | HTTP 框架（相比 actix-web，生态更易与 tower 组合） |
-| `tokio` 1.x | 异步运行时 |
-| `sqlx` | 编译期 SQL 检查，支持迁移 |
-| `sea-orm` 或 `diesel` | ORM（待 Phase 2 选型） |
-| `jsonwebtoken` | JWT 签发/校验 |
-| `argon2` | 密码哈希 |
-| `serde` + `serde_json` | 序列化 |
-| `tracing` + `tracing-subscriber` | 结构化日志 |
-| `rustls` | TLS |
-| `utoipa` | OpenAPI 文档自动生成 |
-
-### 3.3 网关
-
-`hyper` 或 `pingora`（Cloudflare 开源的反向代理框架，基于 tokio）。Phase 1 用 `hyper` 简化实现，Phase 3 视性能需求切换 pingora。
-
-### 3.4 前端
-
-参考 gostc-open 的 Vue 实现，新项目**第一版不强制要求 web 后台**——可使用 `cargo run -- admin` 自带的 Swagger UI（utoipa + utoipa-swagger-ui）作为控制面入口，web 后台作为 Phase 4 任务。
-
-如果实现 web 后台，建议 **Vue 3 + Vite + Pinia + Element Plus**（沿用 gostc-open 栈减少迁移成本），或换 React + shadcn/ui（更现代）。
-
-### 3.5 持久化
-
-- 默认 SQLite（`sqlx` + `sqlite` feature），单文件部署
-- 可选 PostgreSQL（`sqlx` + `postgres` feature），适合多节点部署
-- 数据库迁移：`sqlx migrate`
-
-### 3.6 配置
-
-- 管理后端：`config.toml`（类似 rathole 风格），支持通过控制面热修改运行时配置
-- 节点/客户端：`config.toml` 从管理后端拉取，本地缓存
+> 命名澄清：**orbien** 指 [`orbien-org/orbien`](https://github.com/orbien-org/orbien)（纯 Rust，Apache-2.0）。同名仓库 [`lxien/orbien`](https://github.com/lxien/orbien)（Java + Rust 混合栈）不在参照中。
 
 ---
 
@@ -130,165 +78,147 @@
 ```
 gostc-rs/                                  # GitHub: david88558855/666
 ├── Cargo.toml                             # workspace 根
-├── rust-toolchain.toml                    # 固定 stable 工具链版本（CI 一致性）
-├── README.md                              # 项目入口
-├── ARCHITECTURE.md                        # 本文档
-├── LICENSE                                # Apache-2.0
-├── NOTICE                                 # 归属声明
-├── .github/
-│   └── workflows/
-│       ├── rust-build.yml                 # 编译 + clippy + fmt
-│       └── release.yml                    # （Phase 5） tag 触发多平台 release
+├── README.md / ARCHITECTURE.md / LICENSE / NOTICE
+├── .github/workflows/rust-build.yml       # 三平台编译 + clippy
 ├── crates/
-│   ├── common/                            # 共享类型：协议消息、错误、配置
-│   │   ├── Cargo.toml
-│   │   └── src/lib.rs
-│   ├── admin/                             # 管理后端二进制
-│   │   ├── Cargo.toml
-│   │   ├── migrations/                    # sqlx 迁移
+│   ├── common/                            # 共享类型（协议消息、错误、配置）
+│   ├── admin/                             # 中央控制台
+│   │   ├── migrations/                    # sqlx 迁移（001~003）
 │   │   └── src/
-│   │       ├── main.rs
-│   │       ├── api/                       # REST 路由
-│   │       ├── auth/                      # JWT + 权限
-│   │       ├── db/                        # sqlx models
-│   │       ├── control/                   # 控制面 WS（节点/客户端上报）
-│   │       └── web/                       # 静态文件托管
-│   ├── tunnel-server/                     # 隧道服务端二进制
-│   │   ├── Cargo.toml
-│   │   └── src/main.rs
-│   ├── tunnel-client/                     # 隧道客户端二进制
-│   │   ├── Cargo.toml
-│   │   └── src/main.rs
-│   └── gateway/                           # 自定义域名网关
-│       ├── Cargo.toml
-│       └── src/main.rs
-├── web/                                  # （Phase 4）前端源码
-└── docs/                                 # 文档站点
+│   │       ├── api/                       # auth/clients/nodes/tunnels/users
+│   │       ├── extractors.rs              # AuthUser / AdminUser
+│   │       ├── config.rs                  # load_or_create（首启自动生成）
+│   │       ├── db.rs                      # 池 + 行模型
+│   │       └── web/                       # index.html（内嵌面板）
+│   ├── tunnel-server/                     # 节点二进制
+│   │   └── src/{main.rs, api_client.rs}
+│   └── tunnel-client/                     # 客户端二进制
+│       └── src/{main.rs, api_client.rs}
 ```
 
-四个二进制产物：`gostc-rs-admin`、`gostc-rs-tunnel-server`、`gostc-rs-tunnel-client`、`gostc-rs-gateway`。
+三个二进制产物：`gostc-rs-admin`、`gostc-rs-tunnel-server`、`gostc-rs-tunnel-client`。
 
 ---
 
-## 5. 数据模型（核心表）
+## 5. 数据模型（已实现）
 
-```sql
--- 用户
-CREATE TABLE users (
-    id          INTEGER PRIMARY KEY,
-    username    TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,        -- argon2
-    role        TEXT NOT NULL,           -- 'admin' | 'user'
-    traffic_quota_bytes INTEGER,        -- 流量配额（NULL = 无限）
-    bandwidth_limit_bps INTEGER,         -- 带宽限制
-    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+核心表：`users`、`nodes`、`clients`、`tunnels`（+ 规划中 `traffic_logs`、`audit_logs`）。
 
--- 节点（tunnel-server 实例）
-CREATE TABLE nodes (
-    id              INTEGER PRIMARY KEY,
-    name            TEXT NOT NULL,
-    secret          TEXT UNIQUE NOT NULL,  -- 节点密钥
-    api_endpoint    TEXT NOT NULL,         -- 控制面地址（admin <-> node）
-    tunnel_endpoint TEXT NOT NULL,         -- 数据面地址（client -> node）
-    status          TEXT NOT NULL,         -- online | offline | disabled
-    last_heartbeat  TIMESTAMP,
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- 隧道（client 通过 node 暴露的内服）
-CREATE TABLE tunnels (
-    id            INTEGER PRIMARY KEY,
-    user_id       INTEGER NOT NULL REFERENCES users(id),
-    node_id       INTEGER NOT NULL REFERENCES nodes(id),
-    name          TEXT NOT NULL,
-    type          TEXT NOT NULL,           -- tcp | udp | http | https
-    local_addr    TEXT NOT NULL,           -- 127.0.0.1:22
-    remote_port   INTEGER,                 -- 节点暴露端口（type=tcp/udp）
-    domain        TEXT,                    -- type=https/http 时的域名
-    token         TEXT NOT NULL,             -- 隧道级 token
-    status        TEXT NOT NULL,           -- active | paused
-    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- 流量统计
-CREATE TABLE traffic_logs (
-    id          INTEGER PRIMARY KEY,
-    tunnel_id   INTEGER NOT NULL REFERENCES tunnels(id),
-    bytes_in    INTEGER NOT NULL,
-    bytes_out   INTEGER NOT NULL,
-    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- 审计日志
-CREATE TABLE audit_logs (
-    id          INTEGER PRIMARY KEY,
-    user_id     INTEGER REFERENCES users(id),
-    action      TEXT NOT NULL,
-    target      TEXT,
-    details     TEXT,                       -- JSON
-    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-索引：`traffic_logs(tunnel_id, recorded_at)`、`tunnels(user_id)`、`nodes(secret)`。
+- `clients`：客户端凭据实体（`token` 48 hex），**不绑定节点**（迁移 003 起 `node_id` 可空，仅为兼容保留）
+- `tunnels`：`client_id` + `node_id` 双外键 —— 隧道是绑定关系的载体；`type`（tcp/udp/http/https）、`local_addr`、`remote_port`、`domain`、`token`、`status`
 
 ---
 
-## 6. API 设计（管理面，REST）
-
-所有响应统一 JSON。鉴权：HTTP Bearer JWT（`Authorization: Bearer <token>`），从 `/api/v1/auth/login` 获取。
+## 6. API（管理面，已实现）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/v1/auth/login` | 用户登录，返回 access + refresh token |
-| POST | `/api/v1/auth/refresh` | 刷新 access token |
-| GET/POST/PUT/DELETE | `/api/v1/users[/:id]` | 用户 CRUD（仅 admin） |
-| GET/POST/PUT/DELETE | `/api/v1/nodes[/:id]` | 节点 CRUD |
-| GET/POST/PUT/DELETE | `/api/v1/tunnels[/:id]` | 隧道 CRUD |
-| GET | `/api/v1/tunnels/:id/traffic` | 流量历史 |
-| GET | `/api/v1/audit-logs` | 审计日志（仅 admin） |
-
-控制面 WS（节点 ↔ admin）：`/ws/control`，握手时通过节点 secret 鉴权。
-
-完整 OpenAPI 文档由 `utoipa` 自动生成在 `/swagger-ui/`。
+| POST | `/auth/login` | 登录（admin/admin 首启默认，返回 JWT + must_change_password） |
+| POST | `/auth/password` | 修改密码 |
+| GET/POST/DELETE | `/users[/:id]` | 用户管理（admin） |
+| GET/POST/DELETE | `/nodes[/:id]` | 节点管理；GET `:id/secret` 重取节点命令 |
+| POST | `/nodes/register` | 节点注册+心跳（secret 认证），返回该节点全部隧道+所属客户端 |
+| GET/POST/DELETE | `/clients[/:id]` | 客户端管理（创建只需 name） |
+| POST | `/clients/connect` | 客户端连接（token 认证），返回其 active 隧道涉及的节点端点列表 |
+| GET/POST/PATCH/DELETE | `/tunnels[/:id]` | 隧道 CRUD（client_id + node_id） |
 
 ---
 
-## 7. 协议层（控制面 / 数据面）
+## 7. 数据面协议（对齐 orbien）
 
-### 7.1 控制面
+### 7.1 协议总览
 
-- 节点和客户端通过 HTTPS 长连接到 admin 的 `/ws/control`
-- 协议：WebSocket + JSON 消息
-- 消息类型：`Hello`（带 secret）、`ConfigPull`（拉配置）、`ConfigUpdate`（配置变更推送）、`Heartbeat`、`TunnelStatus`
+orbien 的隧道协议是「**控制连接 + 独立数据连接池**」模型（与 frp 同源）：
 
-### 7.2 数据面（隧道）
+- **控制连接**：长连接，只跑消息帧（登录、隧道注册、数据连接请求、心跳）
+- **数据连接**：独立建立的裸流（或复用流），池化预建；每个公网连接从池中取出一条，先写路由头再转发
+- 好处：控制面阻塞不影响数据转发；数据流是纯透传，无帧开销
 
-- 直接复用 **orbien** 协议：orbien 的 wire protocol 在 `orbien-org/orbien` 源码 `client-rs/src/` 和 `server/src/` 下，基于 yamux 多路复用 + 自定义消息帧
-- 第一次集成时，把 orbien 作为黑盒 binary 调用，通过 SIGHUP 重载配置
-- 中后期目标：把 orbien 的核心库化为内部 crate（特别是 `orbien-core` crate 中已抽出的协议层），让 admin 进程直接控制其生命周期（减少一个进程、避免 TOML round-trip）
+### 7.2 消息帧（wire format）
+
+```
++------------+-----------------+----------------+
+| type (1B)  | length (u32 LE) | JSON body      |
++------------+-----------------+----------------+
+```
+
+- length 上限 4 MiB（防恶意超长帧）
+- 消息类型字节（对齐 orbien `core/src/msg/types.rs`）：
+
+| 类型 | 字节 | 方向 | 载荷要点 |
+|---|---|---|---|
+| Login | `A` | C→S | version, hostname, os, arch, user, agent_id, auth_digest, timestamp, session_id, pool_count |
+| LoginResp | `a` | S→C | version, session_id, error |
+| NewTunnel | `T` | C→S | tunnel_name, protocol, remote_port, local_ip, local_port, domains, locations, basic_auth_*, headers, bandwidth, bandwidth_limit_side |
+| NewTunnelResp | `t` | S→C | tunnel_name, remote_addr, error |
+| CloseTunnel | `X` | C→S | tunnel_name |
+| ReqDataConn | `Q` | S→C | （空）请求客户端补充数据连接 |
+| NewDataConn | `W` | C→S | session_id, auth_digest, timestamp —— 新数据连接首帧鉴权 |
+| StartDataConn | `S` | S→C | tunnel_name, src_addr, src_port, dst_addr, dst_port —— 数据连接路由头 |
+| Ping / Pong | `G`/`g` | 双向 | auth_digest, timestamp / error |
+| UdpPacket | `D` | 双向 | content(base64), local_addr, remote_addr —— UDP 隧道控制面载荷 |
+| KickOut | `E` | S→C | reason |
+
+### 7.3 鉴权（对齐 orbien `core/src/auth`）
+
+- `auth_digest = hex(HMAC-SHA256(token, timestamp秒字符串))`
+- 校验：时间窗（`AUTH_SKEW_SECS`）内 + digest 首次使用（ReplayCache 防重放）
+- token 为空 = 关闭鉴权（仅限本地调试）
+
+### 7.4 数据连接池与公网接入（对齐 orbien server 流程）
+
+```
+公网用户 ──► 节点 :remote_port (TcpTunnel accept)
+                │ 1. 从该 client 的数据连接池 pop
+                │ 2. 池空 → 经控制连接发 ReqDataConn，等客户端
+                │    NewDataConn 补充（超时 10s）
+                │ 3. 在取出的数据连接上写 StartDataConn{tunnel_name, src…}
+                ▼
+           客户端按 tunnel_name 找到隧道 → 连接 local_addr
+                → ingress.stream 与数据连接双向拷贝（带宽限速可选）
+```
+
+- 数据连接池按 **client session** 组织；Login 携带 `pool_count` 预建数量
+- 隧道注册：名称注册表去重 + 端口表（claim/release），失败回滚（对齐 orbien `register.rs`）
+- TCP 调优：nodelay + keepalive(30s/10s)；ingress 支持 Proxy-Protocol / XFF（orbien `net/`）
+
+### 7.5 传输层支持矩阵（规划，按序实现）
+
+| 传输 | 复用 | TLS | 阶段 |
+|---|---|---|---|
+| TCP | yamux（可关） | rustls（自签 rcgen / 证书文件 / mTLS） | **P2 数据面升级目标** |
+| QUIC (quinn) | 原生多流 | 内建 | P3 |
+| WebSocket | yamux | 依存宿主 TLS | P3 |
+| KCP | yamux | 外层 TLS | P4（抗丢包场景） |
+
+ALPN 约定、自签证书生成（rcgen）等细节照 orbien `core/src/transport/tls.rs` 规格。
+
+### 7.6 隧道类型支持矩阵
+
+| 类型 | 状态 | 说明 |
+|---|---|---|
+| TCP | ✅ 已可用（MVP 简化协议） | Phase 2 切换为 orbien 消息协议 + 连接池 |
+| UDP | 面板可建，转发待实现 | 控制面载荷 UdpPacket（`D`） |
+| HTTP/HTTPS | 面板可建，转发待实现 | 节点内置域名路由（替代已移除的 gateway 组件） |
+| SOCKS5 | 未开始 | 对齐 orbien client plugin（客户端本地代理出口） |
 
 ---
 
 ## 8. 部署形态
 
-### 8.1 单机部署（个人 / 小团队）
-
-所有 4 个二进制部署在同一台公网机器：
+### 8.1 二进制直跑（当前主推）
 
 ```
-[公网 IP:8080]  gostc-rs-admin            # 管理后台
-[公网 IP:2333]  gostc-rs-tunnel-server    # 节点监听 client
-[公网 IP:443/4443] gostc-rs-gateway       # 自定义域名
+[公网 IP:8080]  gostc-rs-admin            # 中央控制台（默认 admin/admin）
+[公网 IP:7502]  gostc-rs-tunnel-server    # 节点（面板创建后给命令）
+[内网机器]      gostc-rs-tunnel-client    # 客户端（面板创建后给命令）
 ```
 
-`gostc-rs-tunnel-client` 部署在内网机器，连接节点。
+节点与客户端启动不分先后；均由面板下发的隧道配置驱动。
 
-### 8.2 Docker Compose（推荐）
+### 8.2 Docker（Phase 5）
 
 ```yaml
-version: "3"
 services:
   admin:
     image: david88558855/gostc-rs-admin:latest
@@ -298,79 +228,53 @@ services:
     image: david88558855/gostc-rs-tunnel-server:latest
     network_mode: host
     depends_on: [admin]
-  client:                                # 部署在内网机器
+  client:                                  # 部署在内网机器
     image: david88558855/gostc-rs-tunnel-client:latest
     network_mode: host
-    environment:
-      ADMIN_ADDR: admin.example.com:8080
-      NODE_SECRET: ...
+    command: --api http://admin.example.com:8080 --token <token>
 ```
-
-### 8.3 二进制分发
-
-CI 阶段（`release.yml`，Phase 5 启用）打 4 个平台的二进制包：
-- `x86_64-unknown-linux-gnu`（musl）
-- `aarch64-unknown-linux-musl`
-- `x86_64-pc-windows-msvc`
-- `x86_64-apple-darwin`
 
 ---
 
 ## 9. 实施阶段
 
-### Phase 1：基础设施（本仓库已部分完成）
+### Phase 1：基础设施 ✅
 
-- [x] Cargo workspace 骨架（4 个 crate + root `Cargo.toml`）
-- [x] GitHub Actions `rust-build.yml`：build / clippy / fmt
-- [ ] 共享 crate `common`：协议消息类型、错误定义
-- [ ] `admin` 启动框架：axum + 配置加载 + 健康检查 `/healthz`
+- [x] Cargo workspace 骨架 + GitHub Actions 三平台编译/clippy
+- [x] `common` 共享 crate；`admin` axum 框架、配置自动生成、健康检查
 
-### Phase 2：管理后端 MVP
+### Phase 2：管理后端 MVP ✅
 
-- [ ] 用户表 CRUD + JWT 鉴权 + 登录/刷新
-- [ ] 节点表 CRUD
-- [ ] 隧道表 CRUD
-- [ ] 控制面 WS（节点 hello + heartbeat）
-- [ ] 流量上报 API + 简单统计
+- [x] 用户/节点/客户端/隧道 CRUD + JWT + argon2
+- [x] 节点注册心跳（`/nodes/register`，JOIN 下发隧道配置）
+- [x] 客户端连接（`/clients/connect`，无启动顺序）
+- [x] 内嵌中文 Web 面板（版块对齐 gostc：全站统计/节点管理/客户端/私有隧道/用户管理/关于）
 
-### Phase 3：隧道打通
+### Phase 3：隧道数据面（进行中）
 
-- [ ] 集成 rathole（fork 子进程方案）
-- [ ] 节点端：拉取本节点隧道列表 → 写 rathole server.toml → SIGHUP
-- [ ] 客户端：拉取本客户端隧道列表 → 写 rathole client.toml → 启动 rathole
-- [ ] 速率限制：在控制面按 tunnel.token 限速，rathole 端做 token 校验
+- [x] TCP 隧道 MVP（简化协议：`GOSTC1` 握手 + `DIAL` 借道）
+- [ ] **数据面切换为 orbien 消息协议**：消息帧 + Login/NewTunnel/数据连接池/StartDataConn（§7.2–7.4）
+- [ ] HMAC-SHA256 鉴权 + 防重放替代明文 token
+- [ ] TCP + yamux 复用 + rustls（自签证书）
+- [ ] UDP 隧道转发（UdpPacket 控制面载荷）
+- [ ] 带宽限制（token bucket，按隧道配置）
 
-### Phase 4：网关与前端
+### Phase 4：HTTP/HTTPS 与增强
 
-- [ ] `gateway` 实现 SNI + Host 路由到节点
-- [ ] 自动 HTTPS（ACME）
-- [ ] Web 后台（Vue 3 + Vite）
-- [ ] 集成 Swagger UI
+- [ ] 节点内置 HTTP/HTTPS 域名路由（含 TLS 终止/透明转发两种模式，对齐 orbien）
+- [ ] SOCKS5 客户端插件
+- [ ] QUIC / WebSocket / KCP 传输
+- [ ] 流量统计与配额（traffic_logs + 限速）
 
 ### Phase 5：发布与运营
 
-- [ ] `release.yml`：tag 触发多平台构建 + GitHub Release
-- [ ] Docker 镜像发布到 ghcr.io / Docker Hub
-- [ ] 文档站（docs.rs / 自建 mkdocs）
+- [ ] tag 触发多平台 Release；Docker 镜像；文档站
 
 ---
 
 ## 10. 许可证与归属
 
-本项目采用 **Apache-2.0** 许可证，与上游 `gostc-open` 一致。`NOTICE` 文件需包含：
-
-- 上游项目 `SianHH/gostc-open`（Apache-2.0）— 设计与功能参照来源
-- 上游项目 `rathole-org/rathole`（MIT 或 Apache-2.0）— 传输层基线
-- 上游项目 `fatedier/frp`（Apache-2.0）— 协议设计参考
-
-**合规要求**（来自 Apache-2.0 第 4 条）：
-
-1. 保留上游版权声明
-2. 显著标注所有修改
-3. 不得使用上游贡献者姓名为衍生作品背书
-4. 若修改 NOTICE 文件，须随附修改说明
-
-`LICENSE` 与 `NOTICE` 文件在仓库根目录。
+Apache-2.0。`NOTICE` 声明：gostc-open（管理面设计参照）、orbien-org/orbien（数据面协议参照）、rathole、frp（设计参考）。未复制上游源码，协议为规格级对齐（自研实现）。
 
 ---
 
@@ -378,28 +282,16 @@ CI 阶段（`release.yml`，Phase 5 启用）打 4 个平台的二进制包：
 
 | 风险 / 问题 | 影响 | 缓解 |
 |---|---|---|
-| orbien 目前没有运行时 HTTP API，无法动态增删隧道 | Phase 3 必须 fork orbien 或子进程方案 | 先子进程，Phase 3 中期 fork 化；优先 fork `orbien-core` crate（已是独立协议层） |
-| gostc-open 的 frp-package 是 SianHH 私有 fork | 无法直接参考其定制代码 | 走 orbien 协议，避免依赖 frp |
-| `arpx`（gostc-open 的控制面 RPC）是定制协议 | 我们用 WebSocket + JSON 简化 | 协议是内部接口，重新设计即可 |
-| Rust 跨平台编译（musl + Windows）依赖工具链 | CI 已配置，开发者本机需 rustup | 文档说明 |
-| 多用户流量配额与统计性能 | 高 QPS 下 `traffic_logs` 写入压力大 | 周期性聚合 + 时序采样（Phase 4+） |
-| gostc-open 的 web 资源以 zip 嵌入 Go binary | 我们改为 axum 静态托管 | Phase 4 完成 |
-| orbien 仓库命名歧义（lxien/orbien vs orbien-org/orbien） | 误导后续维护者 | 本节已明确锁定 `orbien-org/orbien`；NOTICE 与 README 同此 |
+| orbien 协议无正式规范文档 | 规格对齐依赖源码阅读 | 以 §7 记录快照；实现时对照 orbien v3.8 源码逐条验证 |
+| 数据连接池在节点重启后需重建 | 客户端短暂不可达 | 客户端 worker 循环自动重连（已有 backoff 机制） |
+| yamux/quinn 引入增加二进制体积 | 偏离 ≤10MB 目标 | 按功能开关（feature flag）裁剪 |
+| SQLite 单写者 | 多 admin 实例不可行 | 明确单实例部署；多实例属非目标 |
+| gostc-open web 为 Vue 工程 | 面板对齐以单文件 HTML 复刻 | 已完成主体版块；细节渐进补齐 |
 
 ---
 
-## 12. 评审清单
+## 12. 版本记录
 
-进入代码实施前需要确认：
-
-- [ ] 总体架构图是否符合预期
-- [ ] 传输层基线选择 orbien（vs rathole / 自研）是否同意
-- [ ] 数据模型是否够用
-- [ ] 是否需要兼容官方 FRP 客户端（决定协议路线）
-- [ ] Phase 1 之后的优先级：管理后端 / 隧道打通 / 网关
-- [ ] 许可证与归属声明文本
-
----
-
-_文档版本：v0.2 — 2026-09-29_
-_变更：传输层基线由 rathole 调整为 orbien（orbien-org/orbien），同步更新协议章节、依赖章节、风险章节、NOTICE 归属。_
+- **v0.3 — 2026-09-29**：确立双对齐基线（管理面 gostc / 数据面 orbien-org/orbien）；§7 落档 orbien 协议规格快照（消息帧/类型表/HMAC 鉴权/数据连接池/传输矩阵）；移除 gateway 组件（HTTP/HTTPS 改由节点内置路由）；更新仓库结构、部署形态与 Phase 进度
+- v0.2 — 2026-09-29：传输层基线由 rathole 调整为 orbien
+- v0.1 — 初始提案

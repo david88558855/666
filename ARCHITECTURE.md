@@ -239,6 +239,7 @@ orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同�
 | 隧道：带宽限制 / Basic Auth / 自定义 Header | ❌ | Phase 4 |
 | 端口转发（forward） / 域名解析（host） | ❌ | Phase 4 |
 | SOCKS5 / P2P 隧道 | ❌ | Phase 4+（SOCKS5 走 orbien client plugin；P2P 按自研方案 §7.8） |
+| 秘密隧道 STCP/SUDP（双方客户端 + sk + visitor） | ✅ 管理面 | 数据面 Phase 4（§7.9，自研） |
 | 用户：流量配额 / 带宽限制生效 | ❌ 表结构已有 | Phase 4 |
 | 流量统计 / 报表 | ❌ | Phase 4（metrics 对齐 orbien counter 栈） |
 | 全站统计趋势图 | 简版卡片 | Phase 4 |
@@ -265,6 +266,31 @@ orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同�
 5. **面板**：P2P 隧道页 UI 已就位（复用隧道卡片骨架），Phase 4+ 接数据面。
 
 排期：Phase 4+（先完成 orbien 底层接入与 UDP/HTTP/HTTPS 数据面，再落 P2P）。
+
+### 7.9 秘密隧道（STCP/SUDP）自研方案（对齐 frp，orbien/gostc-open 均无此能力）
+
+**核查结论（2026-09-29）**：frp 的 STCP/SUDP（服务方与访问方**双方都运行客户端**、
+访问方以 visitor + sk 密钥接入、无公网端口暴露）在 gostc-open 与 orbien 中均不存在
+——gostc-open 的「私有隧道」是节点转发模型，orbien 隧道仅 Tcp/Http/Https/Udp。
+gostc-rs 自研，数据模型与管理面已落地，数据面随 Phase 3/4 接入：
+
+1. **模型**：`tunnels.type ∈ {stcp, sudp}`（服务方隧道，`sk_hash` 存密钥哈希，
+   不存明文、不下发 UI）+ `tunnel_visitors`（访问方入口：visitor 客户端 id +
+   本地监听端口，唯一约束 tunnel×client）。管理面 API：
+   `GET/POST /tunnels/:id/visitors`、`DELETE /tunnels/:id/visitors/:vid`。
+2. **鉴权**：sk 用与用户密码同一套加盐 KDF（auth.rs `hash_password`）哈希；
+   访客连接时访问方客户端提交 sk，服务方客户端以 `verify_password` 校验通过后
+   才建立转发（ReplayCache 防重放，复用 orbien §7.3）。
+3. **协调面**：全部复用现有中央控制台连接模型——服务方与访问方 client 都只连
+   控制台；控制台按 `tunnel_visitors` 下发 visitor 配置（对端身份、sk 哈希、
+   目标隧道），30 秒心跳内自动生效，与普通隧道一致。
+4. **数据面路径**：优先 P2P 直连（复用 §7.8：STUN 打洞，双方 client 直连）；
+   打洞失败回退节点中继（服务方隧道所选节点）。sudp 走同模型，载荷为 UDP。
+5. **面板**：「秘密隧道」页已就位（stcp/sudp 创建 + sk 设置 + 访客管理 Modal）；
+   卡片不显示公网地址，标注「秘密 (sk)」。
+
+排期：管理面 ✅（本轮）；数据面 Phase 4（先于/随 P2P 直连通道一起落地，回退路径
+可先走节点中继提前可用）。
 
 ---
 
@@ -358,6 +384,7 @@ Apache-2.0。`NOTICE` 声明：gostc-open（管理面设计参照）、orbien-or
 
 ## 12. 版本记录
 
+- **v0.6 — 2026-09-29**：自研秘密隧道 STCP/SUDP（核查确认 gostc-open 与 orbien 均无 frp visitor 模型，§7.9）——管理面落地：tunnels 类型扩展（stcp/sudp + sk_hash 加盐哈希）、tunnel_visitors 访客表与 API（GET/POST/DELETE）、面板新增「秘密隧道」页（sk 创建 + 访客管理 Modal，无公网端口暴露）；数据面路径复用 §7.8 P2P 直连 + 节点中继回退，随 Phase 4 接入
 - **v0.5 — 2026-09-29**：控制台对齐 gostc-open——面板重写为 12 项完整菜单（全站统计/系统配置/通知公告/用户管理/节点管理/客户端/域名解析/端口转发/私有隧道/代理隧道/P2P隧道/关于），节点与客户端改 gostc 式卡片网格（域名解析/端口转发/P2P 功能开关与 tabs、连接协议含 WSS 五选项）、五类隧道页共用卡片骨架（状态开关/更多操作/访问密钥）、用户表格页加编辑、全站统计 10 卡 + 流量排行卡；后端补 dashboard 聚合 / notices / settings API 与 nodes 扩展列；§7.8 落档 P2P 自研方案（核查确认 orbien 无 P2P/STUN 能力，需自研：STUN 打洞 + 中继回退）
 - **v0.4 — 2026-09-29**：明确产品定位——gostc 为产品蓝本（Rust 重构），orbien 为**直接复用的数据面底层**（client 库级嵌入 + server 子进程托管，§7.6）；新增节点传输协议选择（tcp/quic/websocket/kcp，§7.0，配置链路已实现）；新增 gostc 功能差距清单（§7.7）
 - **v0.3 — 2026-09-29**：确立双对齐基线（管理面 gostc / 数据面 orbien-org/orbien）；§7 落档 orbien 协议规格快照（消息帧/类型表/HMAC 鉴权/数据连接池/传输矩阵）；移除 gateway 组件（HTTP/HTTPS 改由节点内置路由）；更新仓库结构、部署形态与 Phase 进度

@@ -133,6 +133,21 @@ pub struct TunnelRow {
     pub domain: Option<String>,
     #[serde(skip)]
     pub token: String,
+    /// Hashed secret key for stcp/sudp tunnels; never serialized to the UI.
+    #[serde(skip)]
+    pub sk_hash: Option<String>,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Visitor side of a secret tunnel (frp-style visitor model): the visitor
+/// client listens on `local_listen` and forwards into the tunnel's service.
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct VisitorRow {
+    pub id: i64,
+    pub tunnel_id: i64,
+    pub client_id: i64,
+    pub local_listen: i64,
     pub status: String,
     pub created_at: DateTime<Utc>,
 }

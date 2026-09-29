@@ -26,6 +26,9 @@
   .btn-sm { padding: 3px 9px; font-size: 12px; border-radius: 4px; }
   .btn-ghost { background: #fff; color: var(--primary); border: 1px solid #bfdbfe; }
   .btn-ghost:hover { background: #eff6ff; }
+  .btn-soft { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe;
+         font-weight: 600; }
+  .btn-soft:hover { background: #dbeafe; border-color: #93c5fd; }
   .btn-danger { background: #fff; color: var(--red); border: 1px solid #fecaca; }
   .btn-danger:hover { background: #fef2f2; }
   .btn-text { background: none; border: none; color: var(--primary); padding: 2px 6px;
@@ -332,6 +335,11 @@
           <rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
         </svg><span class="menu-text">私有隧道</span>
       </a>
+      <a class="menu-item" data-page="secrets" onclick="switchPage('secrets')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none"/>
+        </svg><span class="menu-text">秘密隧道</span>
+      </a>
       <a class="menu-item" data-page="proxys" onclick="switchPage('proxys')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/>
@@ -383,7 +391,7 @@
       <section id="page-notices" style="display:none">
         <div class="search-bar"><div class="s-actions">
           <button class="btn-sm btn-ghost" onclick="loadNotices()">刷新</button>
-          <button class="btn-sm admin-only" onclick="showNoticeCreate()">新增</button>
+          <button class="btn-sm btn-soft admin-only" onclick="showNoticeCreate()">新增</button>
         </div></div>
         <div id="notice-list"></div>
       </section>
@@ -399,7 +407,7 @@
             </select></div>
           <div class="s-actions">
             <button class="btn-sm btn-ghost" onclick="loadUsers()">刷新</button>
-            <button class="btn-sm" onclick="showUserCreate()">新增</button>
+            <button class="btn-sm btn-soft" onclick="showUserCreate()">新增</button>
           </div>
         </div>
         <div class="card">
@@ -415,7 +423,7 @@
           <div class="s-item"><label>名称</label><input id="n-search" oninput="renderNodes()"></div>
           <div class="s-actions">
             <button class="btn-sm btn-ghost" onclick="loadNodes()">刷新</button>
-            <button class="btn-sm" onclick="showNodeCreate()">新增</button>
+            <button class="btn-sm btn-soft" onclick="showNodeCreate()">新增</button>
           </div>
         </div>
         <div id="node-grid" class="grid-cards"></div>
@@ -428,7 +436,7 @@
           <div class="s-item"><label>名称</label><input id="c-search" oninput="renderClients()"></div>
           <div class="s-actions">
             <button class="btn-sm btn-ghost" onclick="loadClients()">刷新</button>
-            <button class="btn-sm" onclick="showClientCreate()">新增</button>
+            <button class="btn-sm btn-soft" onclick="showClientCreate()">新增</button>
           </div>
         </div>
         <div id="client-grid" class="grid-cards"></div>
@@ -440,6 +448,7 @@
       <section id="page-hosts" class="tunnel-page" style="display:none"></section>
       <section id="page-forwards" class="tunnel-page" style="display:none"></section>
       <section id="page-tunnels" class="tunnel-page" style="display:none"></section>
+      <section id="page-secrets" class="tunnel-page" style="display:none"></section>
       <section id="page-proxys" class="tunnel-page" style="display:none"></section>
       <section id="page-p2p" class="tunnel-page" style="display:none"></section>
 
@@ -586,7 +595,7 @@ function applySiteName(name) {
 
 /* ---------- 页面切换 ---------- */
 const PAGES = ['dashboard','config_base','notices','users','nodes','clients',
-               'hosts','forwards','tunnels','proxys','p2p','about'];
+               'hosts','forwards','tunnels','secrets','proxys','p2p','about'];
 function switchPage(name) {
   document.querySelectorAll('aside#menu .menu-item').forEach(a =>
     a.classList.toggle('active', a.dataset.page === name));
@@ -600,7 +609,7 @@ function switchPage(name) {
   if (name === 'users' && isAdmin) loadUsers();
   if (name === 'nodes' && isAdmin) loadNodes();
   if (name === 'clients' && isAdmin) loadClients();
-  if (['hosts','forwards','tunnels','proxys','p2p'].includes(name)) renderTunnelPage(name);
+  if (['hosts','forwards','tunnels','secrets','proxys','p2p'].includes(name)) renderTunnelPage(name);
 }
 
 /* ---------- 命令展示 ---------- */
@@ -1048,8 +1057,9 @@ const TP_DEFS = {
   hosts:    {title: '域名解析', types: ['http', 'https'], creatable: true,  desc: '将域名绑定到内网服务，HTTP/HTTPS 隧道由节点内置路由（对齐 orbien）。'},
   forwards: {title: '端口转发', types: ['udp'],           creatable: true,  desc: '将节点公网 UDP 端口转发到内网目标。'},
   tunnels:  {title: '私有隧道', types: ['tcp'],           creatable: true,  desc: '将节点公网 TCP 端口转发到内网目标。'},
+  secrets:  {title: '秘密隧道', types: ['stcp', 'sudp'],  creatable: true,  desc: '自研（对齐 frp STCP/SUDP）：不开放公网端口，服务方与访问方都运行客户端，访问方凭密钥（sk）接入；优先 P2P 直连，失败回退节点中继。'},
   proxys:   {title: '代理隧道', types: [],                creatable: false, desc: 'SOCKS5 代理隧道将在 orbien 数据面接入后提供。'},
-  p2p:      {title: 'P2P隧道',  types: [],                creatable: false, desc: 'P2P 隧道按自研方案实现（STUN 打洞 + 节点中继回退，见 ARCHITECTURE.md §7.8）。'},
+  p2p:      {title: 'P2P隧道',  types: [],                creatable: false, desc: 'P2P 隧道按自研方案实现（STUN 打洞 + 节点中继回退，见 ARCHITECTURE.md §7.8）。秘密隧道已启用同一套 P2P 直连通道。'},
 };
 function renderTunnelPage(name) {
   const def = TP_DEFS[name];
@@ -1067,7 +1077,7 @@ function renderTunnelPage(name) {
         </select></div>
       <div class="s-actions">
         <button class="btn-sm btn-ghost" onclick="loadTunnels()">刷新</button>
-        ${def.creatable ? '<button class="btn-sm" onclick="showTunnelCreate(\'' + name + '\')">新增</button>' : ''}
+        ${def.creatable ? '<button class="btn-sm btn-soft" onclick="showTunnelCreate(\'' + name + '\')">新增</button>' : ''}
       </div>
     </div>
     ${def.creatable ? '' : `<div class="card"><div class="card-body">
@@ -1098,11 +1108,13 @@ function tpNodeName(id) {
   return n ? n.name : (id ? '#' + id : '-');
 }
 function tunnelAccess(r) {
+  if (r.type === 'stcp' || r.type === 'sudp') return null;
   const node = nodeById(r.node_id);
   return (r.type === 'http' || r.type === 'https')
     ? (r.domain || '-')
     : (node && r.remote_port ? `${hostOf(node.tunnel_endpoint)}:${r.remote_port}` : '-');
 }
+function isSecretType(t) { return t === 'stcp' || t === 'sudp'; }
 function renderTpCards() {
   const page = document.querySelector('.tunnel-page:not([style*="none"])');
   if (!page) return;
@@ -1132,19 +1144,22 @@ function renderTpCards() {
           <span class="slider"></span>
         </label></div>
       <div class="ic-body">
-        <span>节点：${node ? dot(node.last_heartbeat) : ''}${esc(tpNodeName(r.node_id))}</span><br>
+        <span>节点${isSecretType(r.type) ? '（中继回退用）' : ''}：${node ? dot(node.last_heartbeat) : ''}${esc(tpNodeName(r.node_id))}</span><br>
         <span>客户端：${client ? dot(client.last_online) : ''}${esc(tpClientName(r.client_id))}</span><br>
         <span>内网目标：${esc(r.local_addr)}</span><br>
-        ${r.type === 'http' || r.type === 'https'
-          ? `<span>域名：${esc(r.domain || '-')}</span><br>`
-          : `<span>远程端口：${r.remote_port ?? '-'}</span><br>`}
-        <span>访问地址：${esc(tunnelAccess(r))}</span><br>
+        ${isSecretType(r.type)
+          ? `<span>访问模式：<span class="badge b-blue">秘密 (sk)</span> 无公网端口</span><br>`
+          : r.type === 'http' || r.type === 'https'
+            ? `<span>域名：${esc(r.domain || '-')}</span><br>`
+            : `<span>远程端口：${r.remote_port ?? '-'}</span><br>`}
+        ${isSecretType(r.type) ? '' : `<span>访问地址：${esc(tunnelAccess(r))}</span><br>`}
         <span>类型：${esc(r.type.toUpperCase())} · 创建：${fmtTime(r.created_at)}</span>
       </div>
       <div class="ic-foot">
         <div class="dd">
           <button class="btn-text" onclick="this.parentElement.classList.toggle('open')">更多操作</button>
           <div class="dd-list">
+            ${isSecretType(r.type) ? `<button onclick="showVisitors(${r.id});this.closest('.dd').classList.remove('open')">访客管理</button>` : ''}
             <button onclick="showTunnelKey(${r.id});this.closest('.dd').classList.remove('open')">访问密钥</button>
           </div>
         </div>
@@ -1173,6 +1188,7 @@ function showTunnelCreate(pageName) {
   const typeOptions = def.types.map(t =>
     `<option value="${t}">${t.toUpperCase()}</option>`).join('');
   const isHost = pageName === 'hosts';
+  const isSecretPage = pageName === 'secrets';
   showModal(`<h3>新增${esc(def.title)}</h3>
     <div class="form-row">
       <div class="form-item"><label>名称</label><input id="t-name" placeholder="web-ssh"></div>
@@ -1181,28 +1197,35 @@ function showTunnelCreate(pageName) {
                 onchange="onTypeChange('${pageName}')">${typeOptions}</select></div>
     </div>
     <div class="form-row">
-      <div class="form-item"><label>客户端</label>
+      <div class="form-item"><label>客户端${isSecretPage ? '（服务方）' : ''}</label>
         <select id="t-client">${clientsCache.map(c =>
           `<option value="${c.id}">#${c.id} ${esc(c.name)}</option>`).join('')}</select></div>
-      <div class="form-item"><label>节点</label>
+      <div class="form-item"><label>节点${isSecretPage ? '（中继回退用）' : ''}</label>
         <select id="t-node">${nodesCache.map(n =>
           `<option value="${n.id}">#${n.id} ${esc(n.name)}（${esc(TRANSPORT_LABEL[n.transport] || n.transport)}）</option>`).join('')}</select></div>
     </div>
-    <div class="form-item"><label>内网目标（客户端内网机器上的服务）</label>
+    <div class="form-item"><label>内网目标（服务方内网机器上的服务）</label>
       <input id="t-local" placeholder="${isHost ? '127.0.0.1:8080' : '127.0.0.1:22'}"></div>
+    <div class="form-item" id="t-sk-label" style="display:${isSecretPage ? '' : 'none'}">
+      <label>密钥 sk（≥6 位，访问方凭此密钥接入；仅保存哈希）</label>
+      <input id="t-sk" placeholder="my-secret-key"></div>
     <div class="form-item" id="t-port-label" style="display:${isHost ? 'none' : ''}">
       <label>远程端口（节点公网开放）</label>
       <input id="t-port" type="number" placeholder="6022"></div>
     <div class="form-item" id="t-domain-label" style="display:${isHost ? '' : 'none'}">
       <label>域名（基础域名下的子域名）</label>
       <input id="t-domain" placeholder="a.example.com"></div>
-    <button class="btn" style="width:100%" onclick="createTunnel('${pageName}')">创建</button>`);
+    <button class="btn" style="width:100%" onclick="createTunnel('${pageName}')">创建</button>
+    ${isSecretPage ? '<p class="hint">创建后在卡片「更多操作 → 访客管理」中为访问方客户端添加访客入口（本地监听端口）。</p>' : ''}`);
 }
 function onTypeChange(pageName) {
   const t = document.getElementById('t-type').value;
   const isPort = t === 'tcp' || t === 'udp';
+  const isSecret = isSecretType(t);
   document.getElementById('t-port-label').style.display = isPort ? '' : 'none';
   document.getElementById('t-domain-label').style.display = isPort ? 'none' : '';
+  const sk = document.getElementById('t-sk-label');
+  if (sk) sk.style.display = isSecret ? '' : 'none';
 }
 async function createTunnel(pageName) {
   const def = TP_DEFS[pageName];
@@ -1211,22 +1234,78 @@ async function createTunnel(pageName) {
                 name: val('t-name'), type, local_addr: val('t-local')};
   if (!body.name) { toast('请填写隧道名称', true); return; }
   if (!body.local_addr) { toast('请填写内网目标', true); return; }
-  if (type === 'tcp' || type === 'udp') body.remote_port = parseInt(val('t-port'), 10) || null;
-  else body.domain = val('t-domain') || null;
+  if (isSecretType(type)) {
+    body.sk = val('t-sk');
+    if (body.sk.length < 6) { toast('请填写至少 6 位的密钥 sk', true); return; }
+  } else if (type === 'tcp' || type === 'udp') {
+    body.remote_port = parseInt(val('t-port'), 10) || null;
+  } else {
+    body.domain = val('t-domain') || null;
+  }
   try {
     const d = await api('/tunnels', {method: 'POST', body: JSON.stringify(body)});
-    const access = (type === 'http' || type === 'https')
-      ? (body.domain || '(域名待解析)')
-      : (nodeById(body.node_id) && body.remote_port
-          ? `${hostOf(nodeById(body.node_id).tunnel_endpoint)}:${body.remote_port}` : '-');
+    const access = isSecretType(type) ? '秘密访问（凭 sk，经访客入口）'
+      : (type === 'http' || type === 'https')
+        ? (body.domain || '(域名待解析)')
+        : (nodeById(body.node_id) && body.remote_port
+            ? `${hostOf(nodeById(body.node_id).tunnel_endpoint)}:${body.remote_port}` : '-');
     document.getElementById('modal-body').innerHTML =
       `<button class="btn-sm btn-ghost modal-close" onclick="closeModal()">关闭</button>
        <h3>隧道创建成功（ID: ${d.id}）</h3>
-       <div class="result-box">${type === 'http' || type === 'https' ? '域名' : '访问地址'}:
-         <code>${esc(access)}</code><br>节点与客户端都在线时约 30 秒内自动生效，无需重启。</div>`;
+       <div class="result-box">访问方式: <code>${esc(access)}</code><br>
+       ${isSecretType(type) ? '下一步：在卡片「更多操作 → 访客管理」为访问方客户端添加本地监听端口。' : '节点与客户端都在线时约 30 秒内自动生效，无需重启。'}</div>`;
     toast('隧道创建成功');
     await loadTunnels();
     renderTpCards();
+  } catch (e) { toast(e.message, true); }
+}
+
+/* ---------- 秘密隧道访客管理（frp visitor 模型，自研） ---------- */
+async function showVisitors(tunnelId) {
+  const t = tunnelsCache.find(x => x.id === tunnelId);
+  if (!t) return;
+  try {
+    const visitors = await api(`/tunnels/${tunnelId}/visitors`);
+    const rows = visitors.map(v => `<tr>
+      <td>${esc(tpClientName(v.client_id))}</td>
+      <td><code>${v.local_listen}</code></td>
+      <td>${v.status === 'active' ? '<span class="badge b-green">启用</span>' : '<span class="badge b-gray">停用</span>'}</td>
+      <td>${fmtTime(v.created_at)}</td>
+      <td><button class="btn-text danger" onclick="delVisitor(${tunnelId},${v.id})">删除</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">暂无访客，请在下方添加</td></tr>';
+    showModal(`<h3>访客管理 —— 「${esc(t.name)}」（${esc(t.type.toUpperCase())}）</h3>
+      <p class="hint">访问方客户端会在本机监听该端口并转发到服务方内网目标（凭隧道 sk 校验）。</p>
+      <div class="card" style="margin-bottom:14px"><div class="table-wrap"><table><thead><tr>
+        <th>访问方客户端</th><th>本地监听端口</th><th>状态</th><th>创建时间</th><th>操作</th>
+      </tr></thead><tbody>${rows}</tbody></table></div></div>
+      <div class="form-row">
+        <div class="form-item"><label>访问方客户端</label>
+          <select id="v-client">${clientsCache.map(c =>
+            `<option value="${c.id}">#${c.id} ${esc(c.name)}</option>`).join('')}</select></div>
+        <div class="form-item"><label>本地监听端口</label>
+          <input id="v-listen" type="number" placeholder="127.0.0.1 上监听的端口，如 6022"></div>
+      </div>
+      <button class="btn" style="width:100%" onclick="addVisitor(${tunnelId})">添加访客</button>`);
+  } catch (e) { toast(e.message, true); }
+}
+async function addVisitor(tunnelId) {
+  const body = {client_id: parseInt(val('v-client'), 10),
+                local_listen: parseInt(val('v-listen'), 10)};
+  if (!body.client_id) { toast('请选择访问方客户端', true); return; }
+  if (!body.local_listen) { toast('请填写本地监听端口', true); return; }
+  try {
+    await api(`/tunnels/${tunnelId}/visitors`, {method: 'POST',
+      body: JSON.stringify(body)});
+    toast('访客已添加（客户端约 30 秒内自动生效）');
+    showVisitors(tunnelId);
+  } catch (e) { toast(e.message, true); }
+}
+async function delVisitor(tunnelId, vid) {
+  if (!confirm('确认删除该访客入口？')) return;
+  try {
+    await api(`/tunnels/${tunnelId}/visitors/${vid}`, {method: 'DELETE'});
+    toast('已删除');
+    showVisitors(tunnelId);
   } catch (e) { toast(e.message, true); }
 }
 async function toggleTunnel(id, on) {

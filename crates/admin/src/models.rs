@@ -42,6 +42,12 @@ pub enum TunnelType {
     Udp,
     Http,
     Https,
+    /// Secret TCP (frp-style STCP, self-built: no public port; visitor
+    /// clients with the secret key reach the service client via the
+    /// coordinator — P2P direct or node relay fallback).
+    Stcp,
+    /// Secret UDP (frp-style SUDP, same visitor model as STCP).
+    Sudp,
 }
 
 impl TunnelType {
@@ -51,6 +57,8 @@ impl TunnelType {
             TunnelType::Udp => "udp",
             TunnelType::Http => "http",
             TunnelType::Https => "https",
+            TunnelType::Stcp => "stcp",
+            TunnelType::Sudp => "sudp",
         }
     }
 }
@@ -63,6 +71,8 @@ impl FromStr for TunnelType {
             "udp" => Ok(Self::Udp),
             "http" => Ok(Self::Http),
             "https" => Ok(Self::Https),
+            "stcp" => Ok(Self::Stcp),
+            "sudp" => Ok(Self::Sudp),
             other => Err(format!("unknown tunnel type: {other}")),
         }
     }

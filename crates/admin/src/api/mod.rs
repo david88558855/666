@@ -7,6 +7,7 @@ pub mod notices;
 pub mod settings;
 pub mod tunnels;
 pub mod users;
+pub mod visitors;
 
 use crate::extractors::AppState;
 use crate::web;
@@ -48,5 +49,10 @@ pub fn router(state: AppState) -> Router {
         .route("/notices", get(notices::list).post(notices::create))
         .route("/notices/:id", axum::routing::delete(notices::delete))
         .route("/settings", get(settings::get).put(settings::update))
+        .route("/tunnels/:id/visitors", get(visitors::list).post(visitors::create))
+        .route(
+            "/tunnels/:id/visitors/:vid",
+            axum::routing::delete(visitors::delete),
+        )
         .with_state(state)
 }

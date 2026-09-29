@@ -1,3 +1,4 @@
+use crate::auth::hash_password;
 use crate::db::{ClientRow, NodeRow, TunnelRow};
 use crate::error::{AppError, AppResult};
 use crate::extractors::{AdminUser, AppState, AuthUser};
@@ -36,6 +37,9 @@ fn validate_tunnel(r#type: &TunnelType, remote_port: &Option<i64>, domain: &Opti
                 ));
             }
         }
+        // Secret tunnels have no public port/domain; access control is the
+        // secret key (sk), hashed server-side.
+        TunnelType::Stcp | TunnelType::Sudp => {}
     }
     Ok(())
 }
@@ -84,6 +88,9 @@ pub struct CreateTunnelRequest {
     pub remote_port: Option<i64>,
     #[serde(default)]
     pub domain: Option<String>,
+    /// Secret key for stcp/sudp tunnels (min 6 chars); stored hashed.
+    #[serde(default)]
+    pub sk: String,
     #[serde(default)]
     pub status: Option<String>,
 }
@@ -138,10 +145,25 @@ pub async fn create(
     }
 
     let token = random_token();
+    // Secret key handling for stcp/sudp: required at creation, hashed with
+    // the same salted KDF as user passwords (auth.rs), never stored plain.
+    let sk_hash = matches!(r#type, TunnelType::Stcp | TunnelType::Sudp).then(|| {
+        if req.sk.len() < 6 {
+            return Err(AppError::Validation(
+                "sk (secret key) of at least 6 characters is required for stcp/sudp tunnels"
+                    .into(),
+            ));
+        }
+        hash_password(&req.sk)
+    });
+    let sk_hash = match sk_hash {
+        Some(h) => Some(h?),
+        None => None,
+    };
     let result = sqlx::query(
         "INSERT INTO tunnels
-           (user_id, node_id, client_id, name, type, local_addr, remote_port, domain, token, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+           (user_id, node_id, client_id, name, type, local_addr, remote_port, domain, token, sk_hash, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(client.user_id)
     .bind(node.id)
@@ -152,6 +174,7 @@ pub async fn create(
     .bind(req.remote_port)
     .bind(&req.domain)
     .bind(&token)
+    .bind(&sk_hash)
     .bind(status.as_str())
     .execute(&state.db.pool)
     .await

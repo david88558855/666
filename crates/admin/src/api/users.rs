@@ -91,7 +91,7 @@ pub async fn update(
             return Err(AppError::Validation("username is empty".into()));
         }
         sqlx::query("UPDATE users SET username = ? WHERE id = ?")
-            .bind(username)
+            .bind(&username)
             .bind(id)
             .execute(&state.db.pool)
             .await

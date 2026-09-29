@@ -1,0 +1,25 @@
+# gostc-rs admin configuration template
+# Copy this file to config.toml and replace the secret before first run.
+
+[server]
+bind_addr = "0.0.0.0:8080"
+data_dir = "./data"
+
+[auth]
+# Required: at least 32 chars. Generate with:
+#   openssl rand -base64 48
+jwt_secret = "REPLACE_ME_WITH_RANDOM_64_BASE64_CHARS"
+access_token_ttl_secs = 3600
+
+[database]
+# SQLite is the default. PostgreSQL / MySQL URLs are also supported by sqlx
+# once the corresponding feature is enabled in Cargo.toml.
+url = "sqlite://./data/gostc-rs.db?mode=rwc"
+
+[bootstrap]
+# Applied only when the users table is empty (first run).
+admin_username = "admin"
+admin_password = "changeme"
+
+[logging]
+level = "info"

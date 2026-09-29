@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/common",
     "crates/admin",
     "crates/tunnel-server",
     "crates/tunnel-client",
@@ -13,6 +14,51 @@ edition = "2021"
 authors = ["david88558855"]
 license = "Apache-2.0"
 repository = "https://github.com/david88558855/666"
+
+[workspace.dependencies]
+# async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# http / web
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.5"
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+hyper = "1"
+
+# database
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "chrono",
+    "uuid",
+    "macros",
+    "migrate",
+    "derive",
+] }
+
+# serde
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# errors / tracing
+anyhow = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# ids / time / config
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+toml = "0.8"
+
+# crypto
+jsonwebtoken = "9"
+argon2 = "0.5"
+rand = "0.8"
+
+# common crate (in workspace)
+gostc-rs-common = { path = "crates/common" }
 
 [profile.release]
 strip = true

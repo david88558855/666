@@ -1,0 +1,11 @@
+[package]
+name = "gostc-rs-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "gostc-rs-gateway"
+path = "src/main.rs"
+
+[dependencies]
+# Placeholder skeleton. Responsible for custom-domain routing; depends on pingora/hyper at implementation phase.

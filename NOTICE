@@ -1,0 +1,45 @@
+gostc-rs
+Copyright 2026 david88558855
+
+This product includes software developed by third parties:
+
+- gostc-open
+  Copyright (c) 2025 SianHH
+  Licensed under the Apache License, Version 2.0
+  Source: https://github.com/SianHH/gostc-open
+  Used as: design reference for the management plane (multi-user, multi-node,
+  tunnel configuration, traffic accounting).
+
+- orbien
+  Copyright (c) 2024-2026 orbien-org contributors
+  Licensed under the Apache License, Version 2.0
+  Source: https://github.com/orbien-org/orbien
+  Used as: data-plane tunnel transport reference (yamux + quinn + rustls +
+  kcp-tokio stack), Web dashboard UI reference.
+
+  Note: a different repository at https://github.com/lxien/orbien also exists
+  (Java Netty server + small Rust client) but is NOT used by this project.
+  All references to "orbien" in this project refer to orbien-org/orbien.
+
+- rathole
+  Copyright (c) 2021 rathole-org contributors
+  Licensed under the Apache License, Version 2.0 (or MIT, per upstream)
+  Source: https://github.com/rathole-org/rathole
+  Used as: alternate data-plane reference (lighter, TCP/TLS/Noise only).
+  Not in primary dependency path but retained as design reference.
+
+- frp
+  Copyright (c) 2016 fatedier
+  Licensed under the Apache License, Version 2.0
+  Source: https://github.com/fatedier/frp
+  Used as: protocol design reference for reverse-proxy semantics.
+
+The full text of the Apache License, Version 2.0 is available at:
+http://www.apache.org/licenses/LICENSE-2.0
+
+Modifications to derivative works:
+- This project is a Rust-language reimplementation, not a translation of
+  source files. The data-plane protocol is rathole's native protocol.
+- No source code from the upstream projects is copied verbatim.
+- Configuration formats, command-line interfaces, and database schemas
+  are designed from scratch.

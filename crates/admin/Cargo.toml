@@ -1,0 +1,11 @@
+[package]
+name = "gostc-rs-admin"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "gostc-rs-admin"
+path = "src/main.rs"
+
+[dependencies]
+# Placeholder skeleton. Real dependencies will be added once architecture review is approved.

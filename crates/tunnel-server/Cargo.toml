@@ -1,0 +1,11 @@
+[package]
+name = "gostc-rs-tunnel-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "gostc-rs-tunnel-server"
+path = "src/main.rs"
+
+[dependencies]
+# Placeholder skeleton. Will depend on rathole (or a fork) at integration phase.

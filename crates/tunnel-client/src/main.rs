@@ -9,6 +9,10 @@
 //! and relays it to the public port on the node.
 
 mod api_client;
+// Phase 4 wires the STUN probe into P2P hole punching (ARCHITECTURE.md 7.8);
+// the codec helpers ship with unit tests now.
+#[allow(dead_code)]
+mod stun;
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;

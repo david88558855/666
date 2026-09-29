@@ -282,8 +282,12 @@ orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同�
 5. **安全**：vKey 与用户密码同一套加盐 KDF 哈希存储；访客连接时 verify 校验；
    数据面加密沿用 orbien 传输层（rustls）
 
-**实现状态**：管理面 ✅（p2p 类型 + 访客 API + 面板页，本轮）；数据面 Phase 3/4
-——先落地 STUN 探测与中继路径（随 orbien 接入即可用），再攻打洞直连。
+**实现状态**：管理面 ✅（p2p 类型 + 访客 API + 面板页）；协调面 ✅（`POST /p2p/sessions`
+内存 Rendezvous：client token 鉴权、按面板信任模型派生 service/visitor 角色、注册即
+返回对端快照、10 分钟 TTL，控制台重启后客户端自动重新注册）；STUN 客户端 ✅
+（tunnel-client `stun.rs`：RFC 5389/8489 Binding 编解码、XOR-MAPPED-ADDRESS v4/v6
+解析、双服务器比对判定 Symmetric NAT，codec 单测覆盖；Phase 4 接入打洞）。UDP 打洞
+与直连数据面（yamux + orbien 帧）Phase 4——先落地中继路径，再攻打洞直连。
 
 排期：与 §7.9 秘密隧道共用访客与协调设施；数据面随 Phase 3/4 接入。
 

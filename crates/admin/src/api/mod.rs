@@ -4,6 +4,7 @@ pub mod dashboard;
 pub mod health;
 pub mod nodes;
 pub mod notices;
+pub mod p2p;
 pub mod settings;
 pub mod tunnels;
 pub mod users;
@@ -54,5 +55,6 @@ pub fn router(state: AppState) -> Router {
             "/tunnels/:id/visitors/:vid",
             axum::routing::delete(visitors::delete),
         )
+        .route("/p2p/sessions", axum::routing::post(p2p::register))
         .with_state(state)
 }

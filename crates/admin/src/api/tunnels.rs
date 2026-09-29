@@ -99,7 +99,7 @@ pub async fn create(
         .map_err(|e| AppError::Validation(e))?;
     let status = match req.status.as_deref() {
         Some(s) => TunnelStatus::from_str(s)
-            .ok_or_else(|| AppError::Validation(format!("invalid status: {s}")))?,
+            .map_err(|_| AppError::Validation(format!("invalid status: {s}")))?,
         None => TunnelStatus::Paused,
     };
     validate_tunnel(&r#type, &req.remote_port, &req.domain)?;
@@ -192,7 +192,7 @@ pub async fn update(
     }
     if let Some(s) = req.status {
         let st = TunnelStatus::from_str(&s)
-            .ok_or_else(|| AppError::Validation(format!("invalid status: {s}")))?;
+            .map_err(|_| AppError::Validation(format!("invalid status: {s}")))?;
         sqlx::query("UPDATE tunnels SET status = ? WHERE id = ?")
             .bind(st.as_str())
             .bind(id)

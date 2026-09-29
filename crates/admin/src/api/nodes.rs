@@ -8,6 +8,7 @@ use axum::Json;
 use rand::RngCore;
 use serde::Deserialize;
 use serde_json::json;
+use std::str::FromStr;
 
 fn random_secret() -> String {
     let mut bytes = [0u8; 32];
@@ -122,7 +123,7 @@ pub async fn update(
     }
     if let Some(s) = req.status {
         let st = NodeStatus::from_str(&s)
-            .ok_or_else(|| AppError::Validation(format!("invalid status: {s}")))?;
+            .map_err(|_| AppError::Validation(format!("invalid status: {s}")))?;
         sqlx::query("UPDATE nodes SET status = ? WHERE id = ?")
             .bind(st.as_str())
             .bind(id)

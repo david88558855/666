@@ -17,6 +17,9 @@ pub enum AppError {
     #[error("migration: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),
 
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+
     #[error("unauthorized")]
     Unauthorized,
 
@@ -48,7 +51,7 @@ impl AppError {
             NotFound(_) => StatusCode::NOT_FOUND,
             Conflict(_) => StatusCode::CONFLICT,
             Validation(_) | PasswordHash(_) => StatusCode::BAD_REQUEST,
-            Internal(_) | Db(_) | Migrate(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Internal(_) | Db(_) | Migrate(_) | Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -58,7 +61,7 @@ impl IntoResponse for AppError {
         let status = self.status();
         // Never leak internal details to clients but always log them.
         let body = match &self {
-            AppError::Internal(_) | AppError::Db(_) | AppError::Migrate(_) => {
+            AppError::Internal(_) | AppError::Db(_) | AppError::Migrate(_) | AppError::Io(_) => {
                 tracing::error!(error = ?self, "internal error");
                 json!({ "error": "internal_error" }).to_string()
             }

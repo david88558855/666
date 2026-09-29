@@ -256,6 +256,7 @@ async fn apply_tunnels(shared: &Shared, reg: &RegisterResponse) {
         let name = t.name.clone();
         let client_token = c.token.clone();
         let local_addr = t.local_addr.clone();
+        let dial_addr = local_addr.clone();
         let pool = {
             let receivers = shared.receivers.read().await;
             receivers.get(&client_token).cloned()
@@ -297,7 +298,7 @@ async fn apply_tunnels(shared: &Shared, reg: &RegisterResponse) {
                 };
                 let mut idle = idle;
                 if idle
-                    .write_all(format!("DIAL {local_addr}\n").as_bytes())
+                    .write_all(format!("DIAL {dial_addr}\n").as_bytes())
                     .await
                     .is_err()
                 {
@@ -318,7 +319,7 @@ async fn apply_tunnels(shared: &Shared, reg: &RegisterResponse) {
             TunnelEntry {
                 name: t.name.clone(),
                 client_token: client_token.clone(),
-                local_addr: local_addr.clone(),
+                local_addr,
                 listener,
             },
         );

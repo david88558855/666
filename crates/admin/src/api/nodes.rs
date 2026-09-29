@@ -43,8 +43,9 @@ pub async fn get(
     row.map(Json).ok_or(AppError::NotFound(format!("node {id}")))
 }
 
-/// Transport protocols a node can fix for tunnel-clients (orbien-aligned).
-pub const TRANSPORTS: [&str; 4] = ["tcp", "quic", "websocket", "kcp"];
+/// Transport protocols a node can fix for tunnel-clients. Aligned with
+/// gostc's protocols.js: TCP / KCP / QUIC / WS / WSS.
+pub const TRANSPORTS: [&str; 5] = ["tcp", "quic", "websocket", "kcp", "wss"];
 
 fn validate_transport(t: &str) -> AppResult<()> {
     if TRANSPORTS.contains(&t) {
@@ -56,6 +57,15 @@ fn validate_transport(t: &str) -> AppResult<()> {
     }
 }
 
+/// gostc-style feature switch: 1 = enabled, 2 = disabled.
+fn validate_switch(v: i64) -> AppResult<()> {
+    if v == 1 || v == 2 {
+        Ok(())
+    } else {
+        Err(AppError::Validation("switch value must be 1 or 2".into()))
+    }
+}
+
 #[derive(Deserialize)]
 pub struct CreateNodeRequest {
     pub name: String,
@@ -64,6 +74,20 @@ pub struct CreateNodeRequest {
     /// Transport protocol for tunnel-clients; defaults to tcp.
     #[serde(default)]
     pub transport: String,
+    #[serde(default)]
+    pub remark: String,
+    #[serde(default)]
+    pub web: i64,
+    #[serde(default)]
+    pub forward: i64,
+    #[serde(default)]
+    pub p2p: i64,
+    #[serde(default)]
+    pub http_port: String,
+    #[serde(default)]
+    pub domain: String,
+    #[serde(default)]
+    pub forward_ports: String,
 }
 
 pub async fn create(
@@ -80,16 +104,29 @@ pub async fn create(
         validate_transport(&req.transport)?;
         req.transport.clone()
     };
+    for v in [req.web, req.forward, req.p2p] {
+        if v != 0 {
+            validate_switch(v)?;
+        }
+    }
     let secret = random_secret();
     let result = sqlx::query(
-        "INSERT INTO nodes (name, secret, api_endpoint, tunnel_endpoint, transport)
-         VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO nodes (name, secret, api_endpoint, tunnel_endpoint, transport,
+                            remark, web, forward, p2p, http_port, domain, forward_ports)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&req.name)
     .bind(&secret)
     .bind(&req.api_endpoint)
     .bind(&req.tunnel_endpoint)
     .bind(&transport)
+    .bind(&req.remark)
+    .bind(if req.web == 0 { 1 } else { req.web })
+    .bind(if req.forward == 0 { 1 } else { req.forward })
+    .bind(if req.p2p == 0 { 1 } else { req.p2p })
+    .bind(&req.http_port)
+    .bind(&req.domain)
+    .bind(&req.forward_ports)
     .execute(&state.db.pool)
     .await
     .map_err(|e| match e {
@@ -118,6 +155,20 @@ pub struct UpdateNodeRequest {
     pub transport: Option<String>,
     #[serde(default)]
     pub status: Option<String>,
+    #[serde(default)]
+    pub remark: Option<String>,
+    #[serde(default)]
+    pub web: Option<i64>,
+    #[serde(default)]
+    pub forward: Option<i64>,
+    #[serde(default)]
+    pub p2p: Option<i64>,
+    #[serde(default)]
+    pub http_port: Option<String>,
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub forward_ports: Option<String>,
 }
 
 pub async fn update(
@@ -160,6 +211,58 @@ pub async fn update(
             .map_err(|_| AppError::Validation(format!("invalid status: {s}")))?;
         sqlx::query("UPDATE nodes SET status = ? WHERE id = ?")
             .bind(st.as_str())
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(remark) = req.remark {
+        sqlx::query("UPDATE nodes SET remark = ? WHERE id = ?")
+            .bind(remark)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(v) = req.web {
+        validate_switch(v)?;
+        sqlx::query("UPDATE nodes SET web = ? WHERE id = ?")
+            .bind(v)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(v) = req.forward {
+        validate_switch(v)?;
+        sqlx::query("UPDATE nodes SET forward = ? WHERE id = ?")
+            .bind(v)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(v) = req.p2p {
+        validate_switch(v)?;
+        sqlx::query("UPDATE nodes SET p2p = ? WHERE id = ?")
+            .bind(v)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(v) = req.http_port {
+        sqlx::query("UPDATE nodes SET http_port = ? WHERE id = ?")
+            .bind(v)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(v) = req.domain {
+        sqlx::query("UPDATE nodes SET domain = ? WHERE id = ?")
+            .bind(v)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await?;
+    }
+    if let Some(v) = req.forward_ports {
+        sqlx::query("UPDATE nodes SET forward_ports = ? WHERE id = ?")
+            .bind(v)
             .bind(id)
             .execute(&state.db.pool)
             .await?;

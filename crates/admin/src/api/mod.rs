@@ -1,7 +1,10 @@
 pub mod auth;
 pub mod clients;
+pub mod dashboard;
 pub mod health;
 pub mod nodes;
+pub mod notices;
+pub mod settings;
 pub mod tunnels;
 pub mod users;
 
@@ -41,5 +44,9 @@ pub fn router(state: AppState) -> Router {
                 .patch(tunnels::update)
                 .delete(tunnels::delete),
         )
+        .route("/dashboard", get(dashboard::count))
+        .route("/notices", get(notices::list).post(notices::create))
+        .route("/notices/:id", axum::routing::delete(notices::delete))
+        .route("/settings", get(settings::get).put(settings::update))
         .with_state(state)
 }

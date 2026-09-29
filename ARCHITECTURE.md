@@ -232,19 +232,39 @@ orbien 仓库分 `core` / `client` / `server` 三个 crate，可复用性不同�
 | gostc 功能 | 状态 | 计划 |
 |---|---|---|
 | 节点：创建/删除/命令展示/心跳在线 | ✅ | — |
-| 节点：传输协议选择（tcp/quic/ws/kcp） | ✅ 配置链路 | orbien 接入后生效 |
+| 节点：传输协议选择（tcp/quic/ws/wss/kcp） | ✅ 配置链路 | orbien 接入后生效 |
 | 客户端：创建/命令/在线状态 | ✅ | — |
 | 隧道：TCP 转发 | ✅ MVP | 切 orbien 协议（§7.6） |
 | 隧道：UDP / HTTP / HTTPS 转发 | ❌ 仅可建 | Phase 3/4（orbien tunnel 类型） |
 | 隧道：带宽限制 / Basic Auth / 自定义 Header | ❌ | Phase 4 |
 | 端口转发（forward） / 域名解析（host） | ❌ | Phase 4 |
-| SOCKS5 / P2P 隧道 | ❌ | Phase 4+（orbien client plugin） |
+| SOCKS5 / P2P 隧道 | ❌ | Phase 4+（SOCKS5 走 orbien client plugin；P2P 按自研方案 §7.8） |
 | 用户：流量配额 / 带宽限制生效 | ❌ 表结构已有 | Phase 4 |
 | 流量统计 / 报表 | ❌ | Phase 4（metrics 对齐 orbien counter 栈） |
 | 全站统计趋势图 | 简版卡片 | Phase 4 |
-| 通知公告 / 系统配置页 | ❌ | Phase 4+ |
+| 通知公告 / 系统配置页 | ✅ 基础版 | 邮件通知等 Phase 4+ |
 | 操作审计日志 | ❌ 表结构已有 | Phase 4+ |
 | ACME 证书自动申请 | ❌ | Phase 4（orbien 内建） |
+
+### 7.8 P2P 隧道自研方案（orbien 无此能力）
+
+**结论（2026-09-29 源码核查）**：orbien 不具备 P2P 能力——`server/src/tunnel/` 仅有
+`TcpTunnel / HttpTunnel / HttpsTunnel / UdpTunnel` 四种隧道，无 STUN 探测、无 UDP
+打洞、无访问方-被访方直连协调代码。gostc-open 的 P2P 隧道（对应 frp 的 xtcp 思路）
+需 gostc-rs 自研，规划如下：
+
+1. **协调面（admin server 扩展）**：新增打洞协调 API——被访方 client 登记待访问的
+   P2P 隧道；访问方请求连接时，server 交换双方的公网映射地址（host:port）与 NAT 探测
+   结果，作为 Rendezvous 角色（对齐 frp xtcp 的 visitor ↔ server ↔ xtcp 工作模型）。
+2. **NAT 探测**：client 内嵌轻量 STUN 客户端（RFC 8489，公网 STUN 服务器可配置），
+   探测 NAT 类型；Full-cone / Restricted-cone 可打洞，Symmetric 直接走中继回退。
+3. **数据面**：双方 client 在协调下互发 UDP 探测包完成打洞，成功后在其上跑 yamux +
+   orbien 消息帧协议（复用 §7.2/§7.3），P2P 隧道流量不过节点。
+4. **中继回退**：打洞失败自动降级为现有节点转发路径（TCP 私有隧道同款），面板上标记
+   「中继模式」，保证可用性优先。
+5. **面板**：P2P 隧道页 UI 已就位（复用隧道卡片骨架），Phase 4+ 接数据面。
+
+排期：Phase 4+（先完成 orbien 底层接入与 UDP/HTTP/HTTPS 数据面，再落 P2P）。
 
 ---
 
@@ -338,6 +358,7 @@ Apache-2.0。`NOTICE` 声明：gostc-open（管理面设计参照）、orbien-or
 
 ## 12. 版本记录
 
+- **v0.5 — 2026-09-29**：控制台对齐 gostc-open——面板重写为 12 项完整菜单（全站统计/系统配置/通知公告/用户管理/节点管理/客户端/域名解析/端口转发/私有隧道/代理隧道/P2P隧道/关于），节点与客户端改 gostc 式卡片网格（域名解析/端口转发/P2P 功能开关与 tabs、连接协议含 WSS 五选项）、五类隧道页共用卡片骨架（状态开关/更多操作/访问密钥）、用户表格页加编辑、全站统计 10 卡 + 流量排行卡；后端补 dashboard 聚合 / notices / settings API 与 nodes 扩展列；§7.8 落档 P2P 自研方案（核查确认 orbien 无 P2P/STUN 能力，需自研：STUN 打洞 + 中继回退）
 - **v0.4 — 2026-09-29**：明确产品定位——gostc 为产品蓝本（Rust 重构），orbien 为**直接复用的数据面底层**（client 库级嵌入 + server 子进程托管，§7.6）；新增节点传输协议选择（tcp/quic/websocket/kcp，§7.0，配置链路已实现）；新增 gostc 功能差距清单（§7.7）
 - **v0.3 — 2026-09-29**：确立双对齐基线（管理面 gostc / 数据面 orbien-org/orbien）；§7 落档 orbien 协议规格快照（消息帧/类型表/HMAC 鉴权/数据连接池/传输矩阵）；移除 gateway 组件（HTTP/HTTPS 改由节点内置路由）；更新仓库结构、部署形态与 Phase 进度
 - v0.2 — 2026-09-29：传输层基线由 rathole 调整为 orbien

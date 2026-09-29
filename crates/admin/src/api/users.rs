@@ -68,6 +68,10 @@ pub async fn create(
 #[derive(Deserialize)]
 pub struct UpdateUserRequest {
     #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
     pub traffic_quota_bytes: Option<Option<i64>>,
@@ -81,10 +85,42 @@ pub async fn update(
     Path(id): Path<i64>,
     Json(req): Json<UpdateUserRequest>,
 ) -> AppResult<Json<serde_json::Value>> {
-    if id == admin.0.id {
-        return Err(AppError::Validation("cannot modify your own role".into()));
+    if let Some(username) = req.username {
+        let username = username.trim().to_string();
+        if username.is_empty() {
+            return Err(AppError::Validation("username is empty".into()));
+        }
+        sqlx::query("UPDATE users SET username = ? WHERE id = ?")
+            .bind(username)
+            .bind(id)
+            .execute(&state.db.pool)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::Database(db) if db.message().contains("UNIQUE") => {
+                    AppError::Conflict(format!("user {username} already exists"))
+                }
+                other => AppError::Db(other),
+            })?;
+    }
+    if let Some(password) = req.password {
+        if !password.is_empty() {
+            if password.len() < 8 {
+                return Err(AppError::Validation(
+                    "password must be at least 8 characters".into(),
+                ));
+            }
+            let hash = hash_password(&password)?;
+            sqlx::query("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?")
+                .bind(hash)
+                .bind(id)
+                .execute(&state.db.pool)
+                .await?;
+        }
     }
     if let Some(role) = req.role {
+        if id == admin.0.id {
+            return Err(AppError::Validation("cannot modify your own role".into()));
+        }
         let r = Role::from_str(&role).map_err(|_| AppError::Validation("invalid role".into()))?;
         sqlx::query("UPDATE users SET role = ? WHERE id = ?")
             .bind(r.as_str())

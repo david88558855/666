@@ -100,8 +100,21 @@ pub struct NodeRow {
     pub api_endpoint: String,
     pub tunnel_endpoint: String,
     /// Transport protocol tunnel-clients use to reach this node
-    /// (tcp | quic | websocket | kcp). See ARCHITECTURE.md section 7.
+    /// (tcp | quic | websocket | kcp | wss). See ARCHITECTURE.md section 7.
     pub transport: String,
+    /// gostc-style presentation fields.
+    pub remark: String,
+    /// Feature switches: 1 = enabled, 2 = disabled (gostc convention).
+    pub web: i64,
+    pub forward: i64,
+    pub p2p: i64,
+    /// Domain resolution config (gostc "域名解析" tab).
+    pub http_port: String,
+    pub domain: String,
+    /// Forward port quota (gostc "端口配额", e.g. "10001-11000,20000").
+    pub forward_ports: String,
+    pub input_bytes: i64,
+    pub output_bytes: i64,
     pub status: String,
     pub last_heartbeat: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
@@ -136,6 +149,16 @@ pub struct ClientRow {
     pub token: String,
     pub status: String,
     pub last_online: Option<DateTime<Utc>>,
+    pub input_bytes: i64,
+    pub output_bytes: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct NoticeRow {
+    pub id: i64,
+    pub title: String,
+    pub content: String,
     pub created_at: DateTime<Utc>,
 }
 

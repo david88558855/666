@@ -14,62 +14,119 @@
   body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
          background: var(--bg); color: var(--text); font-size: 14px; }
   button { cursor: pointer; font-family: inherit; }
-  input, select { font-family: inherit; font-size: 14px; padding: 8px 10px;
+  input, select { font-family: inherit; font-size: 14px; padding: 9px 12px;
          border: 1px solid var(--border); border-radius: 6px; outline: none; width: 100%; }
   input:focus, select:focus { border-color: var(--primary); }
   .btn { border: none; border-radius: 6px; padding: 8px 16px; background: var(--primary);
          color: #fff; font-size: 14px; }
   .btn:hover { background: var(--primary-dark); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
   .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 5px; }
   .btn-ghost { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: #f8fafc; }
   .btn-danger { background: #fff; color: var(--red); border: 1px solid #fecaca; }
   .btn-danger:hover { background: #fef2f2; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .muted { color: var(--muted); }
 
-  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-  .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-         padding: 40px; width: 360px; box-shadow: 0 4px 24px rgba(15,23,42,.06); }
-  .login-card h1 { font-size: 22px; margin-bottom: 4px; }
-  .login-card .sub { color: var(--muted); margin-bottom: 24px; }
-  .login-card label { display: block; margin-bottom: 14px; color: var(--muted); font-size: 13px; }
-  .login-card input { margin-top: 4px; }
-  .login-card .btn { width: 100%; padding: 10px; margin-top: 6px; }
-  .err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  /* ============ 登录页（gostc 式窄卡片） ============ */
+  .login { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+         padding: 20px 24px 24px; width: 320px; box-shadow: 0 4px 24px rgba(15,23,42,.08); }
+  .login-card .title { font-size: 1.5em; font-weight: 700; text-align: center;
+         user-select: none; padding: 4px 0 2px; color: var(--primary); }
+  .login-card .sub { text-align: center; color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+  .login-card hr { border: none; border-top: 1px solid var(--border); margin: 12px 0 16px; }
+  .login-card input { margin-bottom: 14px; }
+  .login-card .btn { width: 100%; padding: 10px; margin-top: 4px; }
+  .err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
 
-  header { background: var(--card); border-bottom: 1px solid var(--border);
-         padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
-  header .brand { font-weight: 700; font-size: 16px; }
-  header .who { color: var(--muted); margin-left: auto; }
-  nav { background: var(--card); border-bottom: 1px solid var(--border);
-         padding: 0 24px; display: flex; gap: 4px; }
-  nav .tab { background: none; border: none; padding: 12px 18px; font-size: 14px;
-         color: var(--muted); border-bottom: 2px solid transparent; }
-  nav .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-  main { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
+  /* ============ 主布局：顶栏 + 侧边菜单 + 内容区（gostc 式） ============ */
+  #app-view { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header.topbar { height: 60px; flex: 0 0 60px; background: var(--card);
+         border-bottom: 1px solid var(--border); display: flex; align-items: center;
+         padding: 0 14px; gap: 12px; z-index: 20; }
+  header .collapse-btn { background: none; border: none; padding: 6px 8px; border-radius: 6px;
+         color: var(--muted); display: flex; align-items: center; }
+  header .collapse-btn:hover { background: #f1f5f9; color: var(--text); }
+  header .divider-v { width: 1px; height: 22px; background: var(--border); }
+  header .site-title { font-size: 1.4em; font-weight: 700; color: var(--primary); user-select: none; }
+  header .spacer { flex: 1; }
+  header .who { color: var(--muted); }
+  .user-menu { position: relative; }
+  .user-menu .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary);
+         color: #fff; display: flex; align-items: center; justify-content: center;
+         font-weight: 700; cursor: pointer; user-select: none; }
+  .user-menu .dropdown { position: absolute; right: 0; top: 42px; background: var(--card);
+         border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(15,23,42,.12);
+         min-width: 140px; padding: 6px; display: none; z-index: 50; }
+  .user-menu .dropdown.open { display: block; }
+  .user-menu .dropdown button { display: block; width: 100%; text-align: left; background: none;
+         border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: var(--text); }
+  .user-menu .dropdown button:hover { background: #f1f5f9; }
+  .user-menu .dropdown button.danger { color: var(--red); }
+
+  .layout-body { flex: 1; display: flex; overflow: hidden; }
+  aside#menu { width: 220px; flex: 0 0 220px; background: var(--card);
+         border-right: 1px solid var(--border); padding: 12px 10px; overflow-y: auto;
+         transition: flex-basis .18s, width .18s; }
+  body.collapsed aside#menu { flex: 0 0 60px; width: 60px; padding: 12px 8px; }
+  aside#menu .menu-item { display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+         margin-bottom: 4px; border-radius: 8px; color: var(--muted); cursor: pointer;
+         font-size: 14px; user-select: none; white-space: nowrap; }
+  aside#menu .menu-item svg { flex: 0 0 18px; width: 18px; height: 18px; }
+  aside#menu .menu-item:hover { background: #f1f5f9; color: var(--text); }
+  aside#menu .menu-item.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
+  body.collapsed aside#menu .menu-item { justify-content: center; padding: 11px 0; }
+  body.collapsed aside#menu .menu-text { display: none; }
+  body:not(.is-admin) .admin-only { display: none !important; }
+  main.content { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* ============ 内容卡片（gostc AppCard 式：圆角 + 边框 + 20px 边距） ============ */
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-         padding: 20px; margin-bottom: 20px; }
-  .card h3 { font-size: 15px; margin-bottom: 14px; }
-  .form-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-  .form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
-         color: var(--muted); }
-  .form-grid input, .form-grid select { width: 170px; }
+         margin-bottom: 20px; }
+  .card-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+         border-bottom: 1px solid var(--border); }
+  .card-head h3 { font-size: 15px; font-weight: 600; }
+  .card-head .spacer { flex: 1; }
+  .card-body { padding: 16px 18px; }
+  .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border);
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
          font-size: 13px; word-break: break-all; }
-  th { color: var(--muted); font-weight: 600; background: #f8fafc; }
-  tr:hover td { background: #f8fafc; }
+  th { color: var(--muted); font-weight: 600; background: #f8fafc; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8fafc; }
+  .empty { text-align: center; color: var(--muted); padding: 32px 0; }
+
+  /* 统计卡片 */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+         gap: 16px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+         padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+  .stat-card .ico { width: 44px; height: 44px; border-radius: 10px; background: #eff6ff;
+         color: var(--primary); display: flex; align-items: center; justify-content: center; }
+  .stat-card .ico.green { background: #f0fdf4; color: var(--green); }
+  .stat-card .num { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .stat-card .label { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
   .b-green { background: #dcfce7; color: var(--green); }
   .b-orange { background: #fef3c7; color: var(--orange); }
   .b-gray { background: #f1f5f9; color: var(--gray); }
   .b-red { background: #fee2e2; color: var(--red); }
   .b-blue { background: #dbeafe; color: var(--primary); }
-  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-  .muted { color: var(--muted); }
+
   .result-box { margin-top: 12px; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe;
          border-radius: 8px; font-size: 13px; line-height: 1.9; word-break: break-all; }
   .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
   .warnbar { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 8px;
          padding: 10px 16px; margin-bottom: 16px; font-size: 13px; }
+  .form-item { margin-bottom: 14px; }
+  .form-item label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-item { flex: 1; }
+
   #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 99;
          display: flex; flex-direction: column; gap: 8px; }
   .toast-item { background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 8px;
@@ -77,152 +134,181 @@
   .toast-item.err { background: var(--red); }
   #modal { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 90;
          display: flex; align-items: center; justify-content: center; }
-  .modal-card { background: var(--card); border-radius: 12px; padding: 24px;
-         width: min(680px, 92vw); max-height: 84vh; overflow: auto;
+  .modal-card { background: var(--card); border-radius: 12px; padding: 22px 24px;
+         width: min(640px, 92vw); max-height: 84vh; overflow: auto;
          box-shadow: 0 12px 40px rgba(15,23,42,.25); }
-  .modal-card h3 { margin-bottom: 10px; }
+  .modal-card h3 { margin-bottom: 14px; font-size: 15px; }
   .modal-close { float: right; }
+
+  /* 关于页 */
+  .about-list { line-height: 2.1; font-size: 13px; }
+  .about-list b { color: var(--text); display: inline-block; min-width: 90px; }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
-<!-- 登录 -->
-<div id="login-view" class="login-wrap">
+<!-- ==================== 登录（gostc 式：居中窄卡 + 标题 + 分割线） ==================== -->
+<div id="login-view" class="login">
   <div class="login-card">
-    <h1>gostc-rs</h1>
-    <p class="sub">内网穿透管理平台 · 控制面板</p>
-    <label>用户名<input id="login-user" autocomplete="username"></label>
-    <label>密码<input id="login-pass" type="password" autocomplete="current-password"
-           onkeydown="if(event.key==='Enter')doLogin()"></label>
+    <div class="title">gostc-rs</div>
+    <div class="sub">内网穿透管理平台</div>
+    <hr>
+    <input id="login-user" placeholder="账号" autocomplete="username">
+    <input id="login-pass" type="password" placeholder="密码" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn" onclick="doLogin()">登 录</button>
     <div id="login-err" class="err"></div>
   </div>
 </div>
 
-<!-- 主界面 -->
+<!-- ==================== 主界面：顶栏 + 侧菜单 + 内容区 ==================== -->
 <div id="app-view" style="display:none">
-  <header>
-    <span class="brand">gostc-rs 控制面板</span>
+  <header class="topbar">
+    <button class="collapse-btn" title="折叠菜单" onclick="toggleMenu()">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="divider-v"></div>
+    <div class="site-title">gostc-rs</div>
+    <div class="spacer"></div>
     <span class="who" id="whoami"></span>
-    <button class="btn-sm btn-ghost" onclick="logout()">退出登录</button>
-  </header>
-  <nav>
-    <button class="tab active" data-tab="tunnels" onclick="switchTab('tunnels')">隧道</button>
-    <button class="tab" data-tab="clients" id="tabbtn-clients" onclick="switchTab('clients')">客户端</button>
-    <button class="tab" data-tab="nodes" id="tabbtn-nodes" onclick="switchTab('nodes')">节点</button>
-    <button class="tab" data-tab="users" id="tabbtn-users" onclick="switchTab('users')">用户</button>
-    <button class="tab" data-tab="password" onclick="switchTab('password')">修改密码</button>
-  </nav>
-  <main>
-    <div id="must-change-bar" class="warnbar" style="display:none">
-      ⚠ 当前账号使用的是初始密码，请尽快在「修改密码」中修改。
-      <a href="#" onclick="switchTab('password');return false">立即修改</a>
+    <div class="user-menu">
+      <div class="avatar" id="avatar" onclick="toggleUserMenu()">A</div>
+      <div class="dropdown" id="user-dropdown">
+        <button onclick="showPasswordModal()">修改密码</button>
+        <button class="danger" onclick="logout()">退出登录</button>
+      </div>
     </div>
+  </header>
 
-    <!-- 隧道 -->
-    <section id="tab-tunnels">
-      <div class="card">
-        <h3>新建隧道</h3>
-        <div class="form-grid">
-          <label>名称<input id="t-name" placeholder="web-ssh"></label>
-          <label>客户端<select id="t-client"><option value="">先创建客户端</option></select></label>
-          <label>节点<select id="t-node"><option value="">先创建节点</option></select></label>
-          <label>类型<select id="t-type" onchange="onTypeChange()">
-            <option value="tcp">TCP</option><option value="udp">UDP</option>
-            <option value="http">HTTP</option><option value="https">HTTPS</option>
-          </select></label>
-          <label>本地地址<input id="t-local" placeholder="127.0.0.1:22"></label>
-          <label id="t-port-label">远程端口<input id="t-port" type="number" placeholder="6022"></label>
-          <label id="t-domain-label" style="display:none">域名<input id="t-domain" placeholder="a.example.com"></label>
-          <button class="btn" onclick="createTunnel()">创建</button>
+  <div class="layout-body">
+    <aside id="menu">
+      <a class="menu-item admin-only" data-page="dashboard" title="全站统计" onclick="switchPage('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+        </svg><span class="menu-text">全站统计</span>
+      </a>
+      <a class="menu-item admin-only" data-page="nodes" title="节点管理" onclick="switchPage('nodes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>
+        </svg><span class="menu-text">节点管理</span>
+      </a>
+      <a class="menu-item admin-only" data-page="clients" title="客户端" onclick="switchPage('clients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>
+        </svg><span class="menu-text">客户端</span>
+      </a>
+      <a class="menu-item" data-page="tunnels" title="私有隧道" onclick="switchPage('tunnels')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+        </svg><span class="menu-text">私有隧道</span>
+      </a>
+      <a class="menu-item admin-only" data-page="users" title="用户管理" onclick="switchPage('users')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16.5 4.6a3.5 3.5 0 0 1 0 6.8M21 20c0-2.8-1.9-5.1-4.5-5.8"/>
+        </svg><span class="menu-text">用户管理</span>
+      </a>
+      <a class="menu-item" data-page="about" title="关于" onclick="switchPage('about')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/>
+        </svg><span class="menu-text">关于</span>
+      </a>
+    </aside>
+
+    <main class="content">
+      <div id="must-change-bar" class="warnbar" style="display:none">
+        ⚠ 当前账号使用的是初始密码，请尽快修改。
+        <a href="#" onclick="showPasswordModal();return false">立即修改</a>
+      </div>
+
+      <!-- 全站统计 -->
+      <section id="page-dashboard" style="display:none">
+        <div class="stat-grid" id="stat-grid"></div>
+        <div class="card" style="margin-top:20px">
+          <div class="card-head"><h3>最新隧道</h3><div class="spacer"></div>
+            <button class="btn-sm btn-ghost" onclick="switchPage('tunnels')">查看全部</button></div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>ID</th><th>名称</th><th>客户端</th><th>节点</th><th>类型</th><th>状态</th><th>创建时间</th>
+          </tr></thead><tbody id="dash-tunnel-rows"></tbody></table></div>
         </div>
-        <div id="t-result"></div>
-        <p class="hint">隧道创建/修改后自动下发到节点与客户端，无需重启客户端进程（客户端在线时约 30 秒内生效）。</p>
-      </div>
-      <div class="card">
-        <h3>隧道列表</h3>
-        <table><thead><tr>
-          <th>ID</th><th>名称</th><th>客户端</th><th>节点</th><th>类型</th><th>本地地址</th>
-          <th>远程端口</th><th>域名</th><th>状态</th><th>操作</th>
-        </tr></thead><tbody id="tunnel-rows"></tbody></table>
-      </div>
-    </section>
+      </section>
 
-    <!-- 客户端 -->
-    <section id="tab-clients" style="display:none">
-      <div class="card">
-        <h3>新建客户端</h3>
-        <div class="form-grid">
-          <label>名称<input id="c-name" placeholder="office-pc"></label>
-          <button class="btn" onclick="createClient()">创建</button>
+      <!-- 节点管理 -->
+      <section id="page-nodes" style="display:none">
+        <div class="card">
+          <div class="card-head">
+            <h3>节点列表</h3><div class="spacer"></div>
+            <button class="btn-sm btn-ghost" onclick="loadNodes()">刷新</button>
+            <button class="btn-sm" onclick="showNodeCreate()">新建节点</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>ID</th><th>名称</th><th>API端点</th><th>隧道端点</th><th>状态</th><th>最近心跳</th><th>操作</th>
+          </tr></thead><tbody id="node-rows"></tbody></table></div>
         </div>
-        <div id="c-result"></div>
-        <p class="hint">客户端只需连中央控制台，无需指定节点；节点与客户端的绑定关系在「隧道」上配置（隧道选哪个节点就走哪个节点公网出去）。客户端与节点的启动没有先后顺序。</p>
-      </div>
-      <div class="card">
-        <h3>客户端列表</h3>
-        <table><thead><tr>
-          <th>ID</th><th>名称</th><th>状态</th><th>最近在线</th><th>创建时间</th><th>操作</th>
-        </tr></thead><tbody id="client-rows"></tbody></table>
-      </div>
-    </section>
+      </section>
 
-    <!-- 节点 -->
-    <section id="tab-nodes" style="display:none">
-      <div class="card">
-        <h3>新建节点</h3>
-        <div class="form-grid">
-          <label>名称<input id="n-name" placeholder="node-1"></label>
-          <label>API端点<input id="n-api" placeholder="127.0.0.1:7501"></label>
-          <label>隧道端点<input id="n-tunnel" placeholder="0.0.0.0:7502"></label>
-          <button class="btn" onclick="createNode()">创建</button>
+      <!-- 客户端 -->
+      <section id="page-clients" style="display:none">
+        <div class="card">
+          <div class="card-head">
+            <h3>客户端列表</h3><div class="spacer"></div>
+            <button class="btn-sm btn-ghost" onclick="loadClients()">刷新</button>
+            <button class="btn-sm" onclick="showClientCreate()">新建客户端</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>ID</th><th>名称</th><th>状态</th><th>最近在线</th><th>创建时间</th><th>操作</th>
+          </tr></thead><tbody id="client-rows"></tbody></table></div>
         </div>
-        <div id="n-result"></div>
-        <p class="hint">「隧道端点」填客户端要连接的地址和端口（如节点公网 IP:7502）。</p>
-      </div>
-      <div class="card">
-        <h3>节点列表</h3>
-        <table><thead><tr>
-          <th>ID</th><th>名称</th><th>API端点</th><th>隧道端点</th><th>状态</th><th>最近心跳</th><th>操作</th>
-        </tr></thead><tbody id="node-rows"></tbody></table>
-      </div>
-    </section>
+        <p class="hint" style="padding:0 4px">客户端只需连中央控制台，无需指定节点；节点与客户端的绑定关系在「私有隧道」上配置。客户端与节点的启动没有先后顺序。</p>
+      </section>
 
-    <!-- 用户 -->
-    <section id="tab-users" style="display:none">
-      <div class="card">
-        <h3>新建用户</h3>
-        <div class="form-grid">
-          <label>用户名<input id="u-name"></label>
-          <label>密码<input id="u-pass" type="text" placeholder="至少 8 位"></label>
-          <label>角色<select id="u-role">
-            <option value="user">普通用户</option><option value="admin">管理员</option>
-          </select></label>
-          <button class="btn" onclick="createUser()">创建</button>
+      <!-- 私有隧道 -->
+      <section id="page-tunnels" style="display:none">
+        <div class="card">
+          <div class="card-head">
+            <h3>隧道列表</h3><div class="spacer"></div>
+            <button class="btn-sm btn-ghost" onclick="loadTunnels()">刷新</button>
+            <button class="btn-sm" onclick="showTunnelCreate()">新建隧道</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>ID</th><th>名称</th><th>客户端</th><th>节点</th><th>类型</th><th>本地地址</th>
+            <th>远程端口</th><th>域名</th><th>状态</th><th>操作</th>
+          </tr></thead><tbody id="tunnel-rows"></tbody></table></div>
         </div>
-      </div>
-      <div class="card">
-        <h3>用户列表</h3>
-        <table><thead><tr>
-          <th>ID</th><th>用户名</th><th>角色</th><th>初始密码待改</th><th>创建时间</th><th>操作</th>
-        </tr></thead><tbody id="user-rows"></tbody></table>
-      </div>
-    </section>
+        <p class="hint" style="padding:0 4px">隧道创建/修改后自动下发：客户端按隧道归属的节点建立反向连接，节点自动开放公网端口。节点与客户端都在线时约 30 秒内生效，无需重启。</p>
+      </section>
 
-    <!-- 修改密码 -->
-    <section id="tab-password" style="display:none">
-      <div class="card" style="max-width:420px">
-        <h3>修改密码</h3>
-        <label style="display:block;margin-bottom:12px;color:var(--muted);font-size:13px">
-          旧密码<input id="p-old" type="password" style="margin-top:4px"></label>
-        <label style="display:block;margin-bottom:12px;color:var(--muted);font-size:13px">
-          新密码（至少 8 位）<input id="p-new" type="password" style="margin-top:4px"></label>
-        <label style="display:block;margin-bottom:12px;color:var(--muted);font-size:13px">
-          确认新密码<input id="p-new2" type="password" style="margin-top:4px"></label>
-        <button class="btn" onclick="changePassword()">提交修改</button>
-      </div>
-    </section>
-  </main>
+      <!-- 用户管理 -->
+      <section id="page-users" style="display:none">
+        <div class="card">
+          <div class="card-head">
+            <h3>用户列表</h3><div class="spacer"></div>
+            <button class="btn-sm btn-ghost" onclick="loadUsers()">刷新</button>
+            <button class="btn-sm" onclick="showUserCreate()">新建用户</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr>
+            <th>ID</th><th>用户名</th><th>角色</th><th>初始密码待改</th><th>创建时间</th><th>操作</th>
+          </tr></thead><tbody id="user-rows"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- 关于 -->
+      <section id="page-about" style="display:none">
+        <div class="card">
+          <div class="card-head"><h3>关于</h3></div>
+          <div class="card-body about-list">
+            <div><b>项目</b> gostc-rs —— 用 Rust 重写的内网穿透管理平台</div>
+            <div><b>功能对照</b> <a href="https://github.com/SianHH/gostc-open" target="_blank">SianHH/gostc-open</a></div>
+            <div><b>源码</b> <a href="https://github.com/david88558855/666" target="_blank">github.com/david88558855/666</a></div>
+            <div><b>许可证</b> Apache-2.0</div>
+            <div><b>当前限制</b> TCP 隧道可用；UDP / HTTP / HTTPS 隧道可创建，转发将在后续版本实现</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -236,6 +322,7 @@ let isAdmin = false;
 let mustChange = false;
 let nodesCache = [];
 let clientsCache = [];
+let tunnelsCache = [];
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g,
@@ -243,6 +330,8 @@ function esc(s) {
 }
 function val(id) { return document.getElementById(id).value.trim(); }
 function fmtTime(s) { return s ? new Date(s).toLocaleString('zh-CN', {hour12: false}) : '从未'; }
+function isOnline(t) { return t && (Date.now() - new Date(t).getTime()) < 90000; }
+function onlineBadge(t) { return isOnline(t) ? statusBadge('online') : statusBadge('offline'); }
 function statusBadge(s) {
   const map = {active:['b-green','运行中'], paused:['b-orange','已暂停'],
                online:['b-green','在线'], offline:['b-gray','离线'],
@@ -269,6 +358,12 @@ function hostOf(endpoint) {
 }
 function nodeById(nodeId) {
   return nodesCache.find(n => String(n.id) === String(nodeId)) || null;
+}
+function tunnelAccess(r) {
+  const node = nodeById(r.node_id);
+  return (r.type === 'http' || r.type === 'https')
+    ? (r.domain || '-')
+    : (node && r.remote_port ? `${hostOf(node.tunnel_endpoint)}:${r.remote_port}` : '-');
 }
 
 async function api(path, opts = {}) {
@@ -301,31 +396,39 @@ async function enterApp(username) {
     isAdmin = false;
   }
   document.getElementById('login-view').style.display = 'none';
-  document.getElementById('app-view').style.display = '';
-  document.getElementById('whoami').textContent =
-    username + (isAdmin ? '（管理员）' : '');
-  ['tabbtn-clients','tabbtn-nodes','tabbtn-users'].forEach(id =>
-    document.getElementById(id).style.display = isAdmin ? '' : 'none');
+  document.getElementById('app-view').style.display = 'flex';
+  document.body.classList.toggle('is-admin', isAdmin);
+  document.getElementById('whoami').textContent = username;
+  document.getElementById('avatar').textContent = (username[0] || 'A').toUpperCase();
   document.getElementById('must-change-bar').style.display = mustChange ? '' : 'none';
-  if (isAdmin) { loadNodes(); loadClients(); }
-  switchTab('tunnels');
+  switchPage(isAdmin ? 'dashboard' : 'tunnels');
 }
 function logoutLocal() {
   localStorage.removeItem(TOKEN_KEY);
   document.getElementById('app-view').style.display = 'none';
-  document.getElementById('login-view').style.display = '';
+  document.getElementById('login-view').style.display = 'flex';
 }
 function logout() { logoutLocal(); }
+function toggleMenu() { document.body.classList.toggle('collapsed'); }
+function toggleUserMenu() {
+  document.getElementById('user-dropdown').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.querySelector('.user-menu');
+  if (menu && !menu.contains(e.target))
+    document.getElementById('user-dropdown').classList.remove('open');
+});
 
-/* ---------- Tab 切换 ---------- */
-function switchTab(name) {
-  document.querySelectorAll('nav .tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === name));
-  ['tunnels','clients','nodes','users','password'].forEach(t =>
-    document.getElementById('tab-' + t).style.display = t === name ? '' : 'none');
-  if (name === 'tunnels') loadTunnels();
-  if (name === 'clients' && isAdmin) loadClients();
+/* ---------- 页面切换（gostc 式侧边菜单路由） ---------- */
+function switchPage(name) {
+  document.querySelectorAll('aside#menu .menu-item').forEach(a =>
+    a.classList.toggle('active', a.dataset.page === name));
+  ['dashboard','nodes','clients','tunnels','users','about'].forEach(p =>
+    document.getElementById('page-' + p).style.display = p === name ? '' : 'none');
+  if (name === 'dashboard' && isAdmin) loadDashboard();
   if (name === 'nodes' && isAdmin) loadNodes();
+  if (name === 'clients' && isAdmin) loadClients();
+  if (name === 'tunnels') loadTunnels();
   if (name === 'users' && isAdmin) loadUsers();
 }
 
@@ -350,7 +453,7 @@ function closeModal() { document.getElementById('modal').style.display = 'none';
 async function showNodeCommand(id) {
   try {
     const d = await api('/nodes/' + id + '/secret');
-    const node = nodesCache.find(n => String(n.id) === String(id));
+    const node = nodeById(id);
     showModal(`<h3>节点「${esc(node ? node.name : id)}」运行命令</h3>
       <p class="hint">在节点服务器（有公网 IP）上运行：</p>` + cmdHtml(serverCmd(d.secret)) +
       `<p class="hint">运行后节点会自动注册上线，并按面板中的隧道配置开放公网端口。</p>`);
@@ -360,38 +463,60 @@ function showClientCommand(client) {
   showModal(`<h3>客户端「${esc(client.name)}」运行命令</h3>
     <p class="hint">在内网机器上运行（只需连中央控制台，无需节点地址；一条命令承载该客户端的所有隧道）：</p>` +
     cmdHtml(clientCmd(client, client.token)) +
-    `<p class="hint">之后在「隧道」页新建/修改隧道即可自动生效，无需重启客户端。</p>`);
+    `<p class="hint">之后在「私有隧道」页新建/修改隧道即可自动生效，无需重启客户端。</p>`);
 }
 
-/* ---------- 隧道 ---------- */
-function onTypeChange() {
-  const t = document.getElementById('t-type').value;
-  const isPort = (t === 'tcp' || t === 'udp');
-  document.getElementById('t-port-label').style.display = isPort ? '' : 'none';
-  document.getElementById('t-domain-label').style.display = isPort ? 'none' : '';
+/* ---------- 全站统计 ---------- */
+async function loadDashboard() {
+  try {
+    const [clients, nodes, tunnels] = await Promise.all(
+      [api('/clients'), api('/nodes'), api('/tunnels')]);
+    nodesCache = nodes; clientsCache = clients; tunnelsCache = tunnels;
+    const onlineClients = clients.filter(c => isOnline(c.last_online)).length;
+    const onlineNodes = nodes.filter(n => isOnline(n.last_heartbeat)).length;
+    const activeTunnels = tunnels.filter(t => t.status === 'active').length;
+    const cards = [
+      ['客户端总数', clients.length, 'client'],
+      ['客户端在线', onlineClients, 'green'],
+      ['节点总数', nodes.length, 'node'],
+      ['节点在线', onlineNodes, 'green'],
+      ['隧道总数', tunnels.length, 'tunnel'],
+      ['运行中隧道', activeTunnels, 'green'],
+    ];
+    const icons = {
+      client: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg>',
+      node: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>',
+      tunnel: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+    };
+    document.getElementById('stat-grid').innerHTML = cards.map(([label, n, kind]) => `
+      <div class="stat-card">
+        <div class="ico ${kind === 'green' ? 'green' : ''}">${icons[kind] || icons.tunnel}</div>
+        <div><div class="num">${n}</div><div class="label">${esc(label)}</div></div>
+      </div>`).join('');
+    const rows = tunnels.slice(-8).reverse();
+    document.getElementById('dash-tunnel-rows').innerHTML = rows.map(r => `<tr>
+      <td>${r.id}</td><td>${esc(r.name)}</td>
+      <td>${esc(clientName(r.client_id))}</td>
+      <td>${esc(nodeById(r.node_id)?.name ?? '-')}</td>
+      <td>${esc(r.type)}</td><td>${statusBadge(r.status)}</td>
+      <td>${fmtTime(r.created_at)}</td></tr>`).join('')
+      || '<tr><td colspan="7" class="empty">暂无隧道</td></tr>';
+  } catch (e) { toast(e.message, true); }
 }
-function refreshSelect(id, items, valueKey, labelFn, emptyText) {
-  const sel = document.getElementById(id);
-  if (!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = items.length
-    ? items.map(i => `<option value="${esc(i[valueKey])}">${esc(labelFn(i))}</option>`).join('')
-    : `<option value="">${emptyText}</option>`;
-  if (cur) sel.value = cur;
-}
-function refreshSelects() {
-  refreshSelect('t-client', clientsCache, 'id', c => `#${c.id} ${c.name}`, '先创建客户端');
-  refreshSelect('t-node', nodesCache, 'id', n => `#${n.id} ${n.name}`, '先创建节点');
-}
+
+/* ---------- 私有隧道 ---------- */
 async function loadTunnels() {
   try {
-    const rows = await api('/tunnels');
+    tunnelsCache = await api('/tunnels');
+    if (isAdmin) {
+      try {
+        const [ns, cs] = await Promise.all([api('/nodes'), api('/clients')]);
+        nodesCache = ns; clientsCache = cs;
+      } catch (e) { /* 非 admin 时忽略 */ }
+    }
     const tb = document.getElementById('tunnel-rows');
-    tb.innerHTML = rows.map(r => {
+    tb.innerHTML = tunnelsCache.map(r => {
       const node = nodeById(r.node_id);
-      const access = (r.type === 'http' || r.type === 'https')
-        ? (r.domain || '-')
-        : (node && r.remote_port ? `${hostOf(node.tunnel_endpoint)}:${r.remote_port}` : '-');
       return `<tr>
       <td>${r.id}</td><td>${esc(r.name)}</td>
       <td>${esc(clientName(r.client_id))}</td>
@@ -399,22 +524,59 @@ async function loadTunnels() {
       <td>${esc(r.type)}</td>
       <td><code>${esc(r.local_addr)}</code></td>
       <td>${r.remote_port ?? '-'}</td><td>${esc(r.domain ?? '-')}</td>
-      <td>${statusBadge(r.status)}<div class="muted" style="font-size:11px">${esc(access)}</div></td>
+      <td>${statusBadge(r.status)}<div class="muted" style="font-size:11px">${esc(tunnelAccess(r))}</div></td>
       <td>
         <button class="btn-sm btn-ghost" onclick="toggleTunnel(${r.id},'${r.status === 'active' ? 'paused' : 'active'}')">
           ${r.status === 'active' ? '暂停' : '启用'}</button>
         <button class="btn-sm btn-danger" onclick="delTunnel(${r.id})">删除</button>
       </td></tr>`;
-    }).join('') || '<tr><td colspan="10" class="muted">暂无隧道</td></tr>';
+    }).join('') || '<tr><td colspan="10" class="empty">暂无隧道</td></tr>';
   } catch (e) { toast(e.message, true); }
+}
+function showTunnelCreate() {
+  if (!clientsCache.length) { toast('请先在「客户端」页创建客户端', true); return; }
+  if (!nodesCache.length) { toast('请先在「节点管理」页创建节点', true); return; }
+  showModal(`<h3>新建隧道</h3>
+    <div class="form-row">
+      <div class="form-item"><label>名称</label><input id="t-name" placeholder="web-ssh"></div>
+      <div class="form-item"><label>类型</label>
+        <select id="t-type" onchange="onTypeChange()">
+          <option value="tcp">TCP</option><option value="udp">UDP</option>
+          <option value="http">HTTP</option><option value="https">HTTPS</option>
+        </select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-item"><label>客户端</label>
+        <select id="t-client">${clientsCache.map(c =>
+          `<option value="${c.id}">#${c.id} ${esc(c.name)}</option>`).join('')}</select></div>
+      <div class="form-item"><label>节点</label>
+        <select id="t-node">${nodesCache.map(n =>
+          `<option value="${n.id}">#${n.id} ${esc(n.name)}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-item"><label>本地地址（客户端内网机器上的服务）</label>
+      <input id="t-local" placeholder="127.0.0.1:22"></div>
+    <div class="form-item" id="t-port-label"><label>远程端口（节点公网开放）</label>
+      <input id="t-port" type="number" placeholder="6022"></div>
+    <div class="form-item" id="t-domain-label" style="display:none"><label>域名</label>
+      <input id="t-domain" placeholder="a.example.com"></div>
+    <button class="btn" style="width:100%" onclick="createTunnel()">创建</button>
+    <div id="t-result"></div>`);
+  onTypeChange();
+}
+function onTypeChange() {
+  const t = document.getElementById('t-type');
+  if (!t) return;
+  const isPort = (t.value === 'tcp' || t.value === 'udp');
+  document.getElementById('t-port-label').style.display = isPort ? '' : 'none';
+  document.getElementById('t-domain-label').style.display = isPort ? 'none' : '';
 }
 async function createTunnel() {
   const type = document.getElementById('t-type').value;
   const body = {client_id: parseInt(val('t-client'), 10), node_id: parseInt(val('t-node'), 10),
                 name: val('t-name'), type, local_addr: val('t-local')};
   if (!body.name) { toast('请填写隧道名称', true); return; }
-  if (!body.client_id) { toast('请选择客户端（先在「客户端」页创建）', true); return; }
-  if (!body.node_id) { toast('请选择节点（先在「节点」页创建）', true); return; }
+  if (!body.client_id) { toast('请选择客户端', true); return; }
+  if (!body.node_id) { toast('请选择节点', true); return; }
   if (!body.local_addr) { toast('请填写本地地址', true); return; }
   if (type === 'tcp' || type === 'udp') body.remote_port = parseInt(val('t-port'), 10) || null;
   else body.domain = val('t-domain') || null;
@@ -426,7 +588,7 @@ async function createTunnel() {
       : (node && body.remote_port ? `${hostOf(node.tunnel_endpoint)}:${body.remote_port}` : '-');
     document.getElementById('t-result').innerHTML =
       `<div class="result-box">✅ 隧道创建成功（ID: ${d.id}）。
-       ${type === 'tcp'
+       ${type === 'tcp' || type === 'udp'
          ? '访问地址: <code>' + esc(access) + '</code>'
          : '域名: <code>' + esc(access) + '</code>'}
        <br>节点与客户端都在线时约 30 秒内自动生效，无需重启。</div>`;
@@ -451,54 +613,70 @@ async function delTunnel(id) {
 async function loadClients() {
   try {
     clientsCache = await api('/clients');
-    refreshSelects();
     const tb = document.getElementById('client-rows');
     tb.innerHTML = clientsCache.map(c => {
       return `<tr>
       <td>${c.id}</td><td>${esc(c.name)}</td>
-      <td>${statusBadge(c.status)}</td>
+      <td>${onlineBadge(c.last_online)}</td>
       <td>${fmtTime(c.last_online)}</td><td>${fmtTime(c.created_at)}</td>
       <td>
         <button class="btn-sm btn-ghost" onclick='showClientCommand(${esc(JSON.stringify({id: c.id, name: c.name, token: c.token}))})'>运行命令</button>
         <button class="btn-sm btn-danger" onclick="delClient(${c.id})">删除</button>
       </td></tr>`;
-    }).join('') || '<tr><td colspan="6" class="muted">暂无客户端</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="empty">暂无客户端</td></tr>';
   } catch (e) { toast(e.message, true); }
+}
+function showClientCreate() {
+  showModal(`<h3>新建客户端</h3>
+    <div class="form-item"><label>名称</label><input id="c-name" placeholder="office-pc"></div>
+    <button class="btn" style="width:100%" onclick="createClient()">创建</button>
+    <p class="hint">客户端只需连中央控制台，无需指定节点；创建后把运行命令复制到内网机器上执行即可。</p>`);
 }
 async function createClient() {
   const body = {name: val('c-name')};
   if (!body.name) { toast('请填写客户端名称', true); return; }
   try {
     const d = await api('/clients', {method: 'POST', body: JSON.stringify(body)});
-    document.getElementById('c-result').innerHTML =
-      `<div class="result-box">✅ 客户端「${esc(d.name)}」创建成功（ID: ${d.id}）。
-       把下面的命令复制到内网机器上运行（只需连中央控制台，节点无需先启动）：</div>` +
-      cmdHtml(clientCmd(d, d.token));
+    document.getElementById('modal-body').innerHTML =
+      `<button class="btn-sm btn-ghost modal-close" onclick="closeModal()">关闭</button>
+       <h3>客户端「${esc(d.name)}」创建成功（ID: ${d.id}）</h3>
+       <p class="hint">把下面的命令复制到内网机器上运行（只需连中央控制台，节点无需先启动）：</p>` +
+      cmdHtml(clientCmd(d, d.token)) +
+      `<p class="hint">之后在「私有隧道」页新建/修改隧道即可自动生效，无需重启客户端。</p>`;
     toast('客户端创建成功');
     loadClients();
   } catch (e) { toast(e.message, true); }
 }
 async function delClient(id) {
   if (!confirm('确认删除客户端 #' + id + '？其名下隧道将一并删除。')) return;
-  try { await api('/clients/' + id, {method: 'DELETE'}); toast('已删除'); loadClients(); loadTunnels(); }
+  try { await api('/clients/' + id, {method: 'DELETE'}); toast('已删除'); loadClients(); }
   catch (e) { toast(e.message, true); }
 }
 
-/* ---------- 节点 ---------- */
+/* ---------- 节点管理 ---------- */
 async function loadNodes() {
   try {
     nodesCache = await api('/nodes');
-    refreshSelects();
     const tb = document.getElementById('node-rows');
     tb.innerHTML = nodesCache.map(r => `<tr>
       <td>${r.id}</td><td>${esc(r.name)}</td><td><code>${esc(r.api_endpoint)}</code></td>
-      <td><code>${esc(r.tunnel_endpoint)}</code></td><td>${statusBadge(r.status)}</td>
+      <td><code>${esc(r.tunnel_endpoint)}</code></td>
+      <td>${onlineBadge(r.last_heartbeat)}</td>
       <td>${fmtTime(r.last_heartbeat)}</td>
       <td>
         <button class="btn-sm btn-ghost" onclick="showNodeCommand(${r.id})">运行命令</button>
         <button class="btn-sm btn-danger" onclick="delNode(${r.id})">删除</button>
-      </td></tr>`).join('') || '<tr><td colspan="7" class="muted">暂无节点</td></tr>';
+      </td></tr>`).join('') || '<tr><td colspan="7" class="empty">暂无节点</td></tr>';
   } catch (e) { toast(e.message, true); }
+}
+function showNodeCreate() {
+  showModal(`<h3>新建节点</h3>
+    <div class="form-item"><label>名称</label><input id="n-name" placeholder="node-1"></div>
+    <div class="form-item"><label>API端点（节点回连面板的地址）</label>
+      <input id="n-api" placeholder="面板IP:8080 或 127.0.0.1:8080"></div>
+    <div class="form-item"><label>隧道端点（客户端要连接的地址和端口）</label>
+      <input id="n-tunnel" placeholder="0.0.0.0:7502，公网访问用 节点公网IP:7502"></div>
+    <button class="btn" style="width:100%" onclick="createNode()">创建</button>`);
 }
 async function createNode() {
   const body = {name: val('n-name'), api_endpoint: val('n-api'),
@@ -506,21 +684,23 @@ async function createNode() {
   if (!body.name) { toast('请填写节点名称', true); return; }
   try {
     const d = await api('/nodes', {method: 'POST', body: JSON.stringify(body)});
-    document.getElementById('n-result').innerHTML =
-      `<div class="result-box">✅ 节点「${esc(d.name)}」创建成功（ID: ${d.id}）。
-       把下面的命令复制到节点服务器上运行：</div>` +
-      cmdHtml(serverCmd(d.secret));
+    document.getElementById('modal-body').innerHTML =
+      `<button class="btn-sm btn-ghost modal-close" onclick="closeModal()">关闭</button>
+       <h3>节点「${esc(d.name)}」创建成功（ID: ${d.id}）</h3>
+       <p class="hint">把下面的命令复制到节点服务器（有公网 IP）上运行：</p>` +
+      cmdHtml(serverCmd(d.secret)) +
+      `<p class="hint">运行后节点会自动注册上线，并按面板中的隧道配置开放公网端口。</p>`;
     toast('节点创建成功');
     loadNodes();
   } catch (e) { toast(e.message, true); }
 }
 async function delNode(id) {
-  if (!confirm('确认删除节点 #' + id + '？其下客户端与隧道将不可用。')) return;
+  if (!confirm('确认删除节点 #' + id + '？其上的隧道将不可用。')) return;
   try { await api('/nodes/' + id, {method: 'DELETE'}); toast('已删除'); loadNodes(); }
   catch (e) { toast(e.message, true); }
 }
 
-/* ---------- 用户 ---------- */
+/* ---------- 用户管理 ---------- */
 async function loadUsers() {
   try {
     const rows = await api('/users');
@@ -529,8 +709,18 @@ async function loadUsers() {
       <td>${r.id}</td><td>${esc(r.username)}</td><td>${statusBadge(r.role)}</td>
       <td>${r.must_change_password ? '是' : '否'}</td><td>${fmtTime(r.created_at)}</td>
       <td><button class="btn-sm btn-danger" onclick="delUser(${r.id})">删除</button></td>
-      </tr>`).join('') || '<tr><td colspan="6" class="muted">暂无用户</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="6" class="empty">暂无用户</td></tr>';
   } catch (e) { toast(e.message, true); }
+}
+function showUserCreate() {
+  showModal(`<h3>新建用户</h3>
+    <div class="form-item"><label>用户名</label><input id="u-name"></div>
+    <div class="form-item"><label>密码（至少 8 位）</label><input id="u-pass" type="text"></div>
+    <div class="form-item"><label>角色</label>
+      <select id="u-role">
+        <option value="user">普通用户</option><option value="admin">管理员</option>
+      </select></div>
+    <button class="btn" style="width:100%" onclick="createUser()">创建</button>`);
 }
 async function createUser() {
   const body = {username: val('u-name'), password: val('u-pass'),
@@ -539,8 +729,7 @@ async function createUser() {
   try {
     const d = await api('/users', {method: 'POST', body: JSON.stringify(body)});
     toast('用户 ' + d.username + ' 创建成功（首次登录需改密）');
-    document.getElementById('u-name').value = '';
-    document.getElementById('u-pass').value = '';
+    closeModal();
     loadUsers();
   } catch (e) { toast(e.message, true); }
 }
@@ -550,7 +739,15 @@ async function delUser(id) {
   catch (e) { toast(e.message, true); }
 }
 
-/* ---------- 修改密码 ---------- */
+/* ---------- 修改密码（顶栏用户菜单入口，gostc 式弹窗） ---------- */
+function showPasswordModal() {
+  document.getElementById('user-dropdown').classList.remove('open');
+  showModal(`<h3>修改密码</h3>
+    <div class="form-item"><label>旧密码</label><input id="p-old" type="password"></div>
+    <div class="form-item"><label>新密码（至少 8 位）</label><input id="p-new" type="password"></div>
+    <div class="form-item"><label>确认新密码</label><input id="p-new2" type="password"></div>
+    <button class="btn" style="width:100%" onclick="changePassword()">提交修改</button>`);
+}
 async function changePassword() {
   const old_password = val('p-old'), new_password = val('p-new');
   if (new_password !== val('p-new2')) { toast('两次输入的新密码不一致', true); return; }
@@ -561,7 +758,7 @@ async function changePassword() {
     toast('密码修改成功');
     mustChange = false;
     document.getElementById('must-change-bar').style.display = 'none';
-    ['p-old','p-new','p-new2'].forEach(i => document.getElementById(i).value = '');
+    closeModal();
   } catch (e) { toast(e.message, true); }
 }
 
@@ -580,7 +777,6 @@ function tokenUsername() {
   } catch (e) { return ''; }
 }
 (async function boot() {
-  onTypeChange();
   if (!localStorage.getItem(TOKEN_KEY)) return;
   try { await enterApp(tokenUsername()); } catch (e) { /* 401 时已回到登录页 */ }
 })();
